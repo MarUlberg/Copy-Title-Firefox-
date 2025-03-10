@@ -42,8 +42,29 @@ function getSiteHandler() {
   if (siteURL.includes("theporndb.net")) {
     return processAdultdbTitle;
   }
+  if (siteURL.includes("mail.google.com")) {
+    return processGmailTitle;
+  }
 
   return processGenericTitle;
+}
+
+
+// Processes title for Gmail
+function processGmailTitle(title) {
+  console.log("📧 Processing title for Gmail");
+
+  let parts = title.split(" - ");
+  
+  for (let part of parts) {
+    if (part.includes("@")) {
+      console.log("📋 Extracted Email:", part);
+      return part; // Return the email address
+    }
+  }
+
+  console.warn("⚠ No email found in Gmail title!");
+  return title; // Fallback in case no email is found
 }
 
 // Processes title for proff.no
