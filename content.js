@@ -1,37 +1,5 @@
 console.log("🟡 Content script loaded!");
 
-function copyToClipboard(text) {
-  if (!navigator.clipboard) {
-    console.warn("⚠ Clipboard API not available, using fallback.");
-    fallbackCopyText(text);
-    return;
-  }
-
-  navigator.clipboard.writeText(text)
-    .then(() => console.log("📋 Successfully copied:", text))
-    .catch((err) => {
-      console.error("❌ Failed to copy using Clipboard API:", err);
-      fallbackCopyText(text);
-    });
-}
-
-function fallbackCopyText(text) {
-  const textarea = document.createElement("textarea");
-  textarea.value = text;
-  document.body.appendChild(textarea);
-  textarea.select();
-  try {
-    if (document.execCommand("copy")) {
-      console.log("📋 Copied using fallback method:", text);
-    } else {
-      console.error("❌ execCommand copy failed.");
-    }
-  } catch (e) {
-    console.error("❌ execCommand error:", e);
-  }
-  document.body.removeChild(textarea);
-}
-
 // Determines which function to use based on the website
 function getSiteHandler() {
   const siteURL = window.location.origin;
@@ -45,9 +13,9 @@ function getSiteHandler() {
   if (siteURL.includes("mail.google.com")) {
     return processGmailTitle;
   }
-
   return processGenericTitle;
 }
+
 
 
 // Processes title for Gmail
@@ -62,7 +30,6 @@ function processGmailTitle(title) {
       return part; // Return the email address
     }
   }
-
   console.warn("⚠ No email found in Gmail title!");
   return title; // Fallback in case no email is found
 }
@@ -80,7 +47,6 @@ function processProffTitle(title) {
     console.log("📋 Formatted Title:", formattedTitle);
     return formattedTitle;
   }
-
   return title;
 }
 
@@ -143,6 +109,51 @@ function processGenericTitle(title) {
   return title.split(/ - | :: | — /)[0].trim();
 }
 
+
+
+// Listen for message to copy the title
+const browserAPI = typeof browser !== "undefined" ? browser : chrome;
+
+browserAPI.runtime.onMessage.addListener((message) => {
+  console.log("📩 Message received in content.js:", message);
+  if (message.action === "copyTitle") {
+    processPageTitle();
+  }
+});
+
+// Function to copy text to clipboard
+function copyToClipboard(text) {
+  if (!navigator.clipboard) {
+    console.warn("⚠ Clipboard API not available, using fallback.");
+    fallbackCopyText(text);
+    return;
+  }
+
+  navigator.clipboard.writeText(text)
+    .then(() => console.log("📋 Successfully copied:", text))
+    .catch((err) => {
+      console.error("❌ Failed to copy using Clipboard API:", err);
+      fallbackCopyText(text);
+    });
+}
+
+function fallbackCopyText(text) {
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  document.body.appendChild(textarea);
+  textarea.select();
+  try {
+    if (document.execCommand("copy")) {
+      console.log("📋 Copied using fallback method:", text);
+    } else {
+      console.error("❌ execCommand copy failed.");
+    }
+  } catch (e) {
+    console.error("❌ execCommand error:", e);
+  }
+  document.body.removeChild(textarea);
+}
+
 // Main function to process page title
 function processPageTitle() {
   let title = document.title;
@@ -162,13 +173,3 @@ function processPageTitle() {
     copyToClipboard(formattedTitle);
   }
 }
-
-// Listen for message to copy the title
-const browserAPI = typeof browser !== "undefined" ? browser : chrome;
-
-browserAPI.runtime.onMessage.addListener((message) => {
-  console.log("📩 Message received in content.js:", message);
-  if (message.action === "copyTitle") {
-    processPageTitle();
-  }
-});
