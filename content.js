@@ -1,24 +1,35 @@
 console.log("🟡 Content script loaded!");
 
 function copyToClipboard(text) {
-  const button = document.createElement("button");
-  button.innerText = "Copy";
-  button.style.position = "absolute";
-  button.style.opacity = "0"; // Make it invisible
-  document.body.appendChild(button);
+  if (!navigator.clipboard) {
+    console.warn("⚠ Clipboard API not available, using fallback.");
+    fallbackCopyText(text);
+    return;
+  }
 
-  button.addEventListener("click", () => {
-    const textarea = document.createElement("textarea");
-    textarea.value = text;
-    document.body.appendChild(textarea);
-    textarea.select();
-    document.execCommand("copy");
-    document.body.removeChild(textarea);
-    console.log("📋 Copied title (User-Event Trick):", text);
-  });
+  navigator.clipboard.writeText(text)
+    .then(() => console.log("📋 Successfully copied:", text))
+    .catch((err) => {
+      console.error("❌ Failed to copy using Clipboard API:", err);
+      fallbackCopyText(text);
+    });
+}
 
-  button.click(); // Simulate user interaction
-  document.body.removeChild(button);
+function fallbackCopyText(text) {
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  document.body.appendChild(textarea);
+  textarea.select();
+  try {
+    if (document.execCommand("copy")) {
+      console.log("📋 Copied using fallback method:", text);
+    } else {
+      console.error("❌ execCommand copy failed.");
+    }
+  } catch (e) {
+    console.error("❌ execCommand error:", e);
+  }
+  document.body.removeChild(textarea);
 }
 
 function processPageTitle() {

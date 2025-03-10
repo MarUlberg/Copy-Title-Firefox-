@@ -3,7 +3,7 @@
   "name": "Copy Page Title",
   "version": "1.2",
   "description": "One-click copy of the page title.",
-  "permissions": ["activeTab", "tabs"],
+  "permissions": ["activeTab", "tabs", "clipboardWrite"],
   "browser_action": {
     "default_icon": {
       "16": "iconx128.png",
