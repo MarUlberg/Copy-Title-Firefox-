@@ -1,21 +1,39 @@
 console.log("🟡 Content script loaded!");
 
 // Determines which function to use based on the website
+const siteHandlers = {
+    "amazon.": processAmazonTitle,
+    "youtube.com": processYouTubeTitle,
+    "proff.no": processProffTitle,
+    "theporndb.net": processAdultdbTitle,
+    "mail.google.com": processGmailTitle,
+    "reddit.com": processRedditTitle  // ✅ Add Reddit support
+};
+
 function getSiteHandler() {
   const siteURL = window.location.origin;
-
-  if (siteURL.includes("proff.no")) {
-    return processProffTitle;
-  }
-  if (siteURL.includes("theporndb.net")) {
-    return processAdultdbTitle;
-  }
-  if (siteURL.includes("mail.google.com")) {
-    return processGmailTitle;
+  for (let site in siteHandlers) {
+    if (siteURL.includes(site)) {
+      return siteHandlers[site];
+    }
   }
   return processGenericTitle;
 }
 
+
+// Processes title for Reddit
+function processRedditTitle(title) {
+    console.log("🔴 Processing title for Reddit");
+
+    // Remove flair (anything inside brackets at the beginning)
+    title = title.replace(/^\[.*?\]\s*/, "");
+
+    // Remove everything after and including " : "
+    title = title.split(" : ")[0].trim();
+
+    console.log("📋 Formatted Title:", title);
+    return title;
+}
 
 
 // Processes title for Gmail
@@ -32,6 +50,48 @@ function processGmailTitle(title) {
   }
   console.warn("⚠ No email found in Gmail title!");
   return title; // Fallback in case no email is found
+}
+
+// Processes title for Amazon product pages
+function processAmazonTitle(title) {
+  console.log("🛒 Processing title for Amazon");
+
+  // Remove "Amazon: " or "Amazon.com: " from the beginning if present
+  title = title.replace(/^Amazon(\.com)?:\s*/i, "");
+
+  // Find the first occurrence of ",", " - ", or " – " and trim at that point
+  let stopChars = [",", " - ", " – "];
+  let minIndex = title.length; // Start with the full length of the title
+
+  for (let char of stopChars) {
+    let index = title.indexOf(char);
+    if (index !== -1 && index < minIndex) {
+      minIndex = index;
+    }
+  }
+
+  // Trim title at the first separator found
+  let trimmedTitle = title.substring(0, minIndex).trim();
+
+  console.log("📋 Formatted Title:", trimmedTitle);
+  return trimmedTitle;
+}
+
+// Processes title for YouTube videos
+function processYouTubeTitle(title) {
+    console.log("🎬 Processing title for YouTube");
+
+    // Remove " - YouTube" at the end
+	title = title.replace(/ - YouTube$/, "").trim();
+
+    // Remove anything after and including " [" or " ("
+    title = title.split(" [")[0].split(" (")[0].trim();
+
+    // Apply title case formatting while preserving big words
+    let formattedTitle = properTitleCase(title);
+
+    console.log("📋 Formatted Title:", formattedTitle);
+    return formattedTitle;
 }
 
 // Processes title for proff.no
@@ -104,22 +164,118 @@ function processAdultdbTitle(title) {
   return title;
 }
 
-// Processes titles for generic websites (default behavior)
+// Processes generic page titles (default behavior)
 function processGenericTitle(title) {
-  return title.split(/ - | :: | — /)[0].trim();
+    // Remove common separators like " - ", " :: ", " — ", " | "
+    let cleanTitle = title.split(/ - | :: | — | \| | : /)[0].trim();
+
+    // Check if the title contains a dash and a question
+    let dashParts = title.split(" - ");
+    if (dashParts.length > 1 && dashParts[1].includes("?")) {
+        let firstPart = dashParts[0].trim();
+        let secondPart = dashParts.slice(1).join(" - ").trim(); // Keep the full second part
+
+        // If the first part is a single word, remove it
+        if (!firstPart.includes(" ")) {
+            cleanTitle = secondPart;
+        }
+    }
+
+    // Check if "?" is followed by unwanted text (like " - Site Name")
+    let questionIndex = cleanTitle.indexOf("?");
+    if (questionIndex !== -1) {
+        let afterQuestion = cleanTitle.substring(questionIndex + 1).trim();
+
+        // If there's unwanted text after "?", keep only up to the "?"
+        if (afterQuestion.length === 0 || afterQuestion.match(/^(by |at |on |-|\|)/i)) {
+            cleanTitle = cleanTitle.substring(0, questionIndex + 1).trim();
+        }
+    }
+
+    return cleanTitle;
 }
 
 
+
+// Converts text to Title Case, preserving acronyms in `bigWords`
+function properTitleCase(text) {
+    const smallWords = new Set([
+	    "a", "an", "the", "and", "but", "or", "nor", "for", "so", "yet",
+		"at", "by", "in", "of", "on", "to", "up", "with", "as", "if", "is", 
+		"it", "than", "that", "via"
+]);
+    
+	const bigWords = new Set([
+		"ABBA", "AC", "AC/DC", "ADIDAS", "AFK", "AI", "AMD", "A$AP", "AWOLNATION", 
+		"BBL", "BFF", "BLK", "JKS", "BRB", "BTS", "BTW", "CBGB", "CHIPS", "CHVRCHES", 
+		"CNR", "CQ", "DAFT PUNK", "DC", "DEBS", "DMT", "DM", "DNA", "DOA", "DUI", "DURRY", 
+		"DWNTWN", "DYWTYLM", "EDM", "EOD", "ETA", "FARTBARF", "FIDLAR", "FIST", "FIZZ", 
+		"FML", "FOD", "FTW", "FUBAR", "FYI", "GATTACA", "GG", "GIFT", "GMO", "GNR", "GOAT", 
+		"GTFO", "GWAR", "HAIM", "HBD", "HBU", "HEALTH", "HMU", "HOTS", "HSBF", "IAMDYNAMITE", 
+		"IAMX", "IBM", "IDC", "IDGAF", "IFHY", "IKR", "ILY", "IMO", "INXS", "IKEA", "IRL", 
+		"JK", "JPNSGRLS", "KISS", "LCD", "SOUNDSYSTEM", "LFG", "LIT", "LMAO", "LMK", "LOL", 
+		"MEST", "MGMT", "MIA", "MIB", "MILF", "MNDR", "MSTRKRFT", "MY BABY", "NASA", "NBD", 
+		"NFT", "NFWMB", "NIB", "NOFX", "NSFW", "NSU", "OFC", "OFF!", "OMG", "OK", "OU", "PCU", 
+		"PROF", "PTA", "PUP", "PWR", "BTTM", "RBG", "RCA", "RED", "RIP", "RKO", "RNB", "ROFL", 
+		"RV", "RVIVR", "SBTRKT", "SHC", "SIMP", "SKAAL", "SMD", "SMH", "SOL", "SONY", "SOS", 
+		"STRFKR", "SWLABR", "TBA", "TBH", "TGIF", "THT", "THX", "TMI", "TMNT", "TNT", "TOOL", 
+		"TOPS", "TTD", "TTNG", "TTYL", "TV", "UFO", "UHF", "UTFO", "VFW", "VIP", "VPN", 
+		"WAP", "WIFI", "WHY?", "WTCHS", "WTF", "WTFIGO", "WUSA", "WYD", "XS", "XXX", 
+		"YMCA", "YOLO", "ZEKE"
+	]);
+
+    return text
+        .split(/\s+/) // Split on spaces while handling multiple spaces
+        .map((word, index) => {
+            let isBigWord = bigWords.has(word.toUpperCase());
+
+            // Convert fully uppercase words (not in bigWords) to title case
+            if (!isBigWord && word === word.toUpperCase()) {
+                word = word.toLowerCase();
+            }
+
+            // Preserve words from bigWords only if they were already capitalized
+            if (isBigWord && word === word.toUpperCase()) {
+                return word.toUpperCase();
+            }
+
+            // Keep small words lowercase unless they're the first word
+            if (index !== 0 && smallWords.has(word.toLowerCase())) {
+                return word.toLowerCase();
+            }
+
+            // Handle apostrophes correctly (e.g., "He's" should remain "He's", not "He'S")
+            return word.replace(/\b\w/g, char => char.toUpperCase()).replace(/'([A-Z])/g, match => match.toLowerCase());
+        })
+        .join(" ");
+}
 
 // Listen for message to copy the title
 const browserAPI = typeof browser !== "undefined" ? browser : chrome;
 
 browserAPI.runtime.onMessage.addListener((message) => {
-  console.log("📩 Message received in content.js:", message);
-  if (message.action === "copyTitle") {
-    processPageTitle();
-  }
+    console.log("📩 Message received in content.js:", message);
+
+    let title = document.title;
+    let siteHandler = getSiteHandler();
+    let formattedTitle = siteHandler(title);
+    let url = window.location.href;
+
+    let copyText = formattedTitle; // Default action
+
+    if (message.action === "copyTitleWithUrl") {
+        copyText += `\n${url}`; // Title + URL
+    } else if (message.action === "copyMarkdown") {
+        copyText = `[${formattedTitle}](${url})`; // Markdown format
+    } else if (message.action === "copyRawTitle") {
+        copyText = title; // Unmodified raw page title
+    } else if (message.action === "copyUrl") {
+        copyText = url; // Only the URL
+    }
+
+    copyToClipboard(copyText);
 });
+
 
 // Function to copy text to clipboard
 function copyToClipboard(text) {
