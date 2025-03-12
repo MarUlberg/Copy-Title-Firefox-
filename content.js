@@ -22,38 +22,72 @@ function getSiteHandler() {
 }
 
 
+
+
+
 // Processes title for Soliditet
 function processSoliditetTitle(title) {
     console.log("🔵 Processing title for Soliditet");
-    
+
     function findCompanyName() {
         console.log("🔍 Searching for company name...");
-        
+
         // Select the h2 that contains a 9-digit number (organization number)
         let companyElement = Array.from(document.querySelectorAll("h2")).find(el => /\b\d{9}\b/.test(el.innerText));
-        
+
         if (companyElement) {
             let companyName = companyElement.innerText.trim();
             console.log("✅ Found company name:", companyName);
-            
+
             // Check if the URL ends with "/nordicCompanyReport.sp"
             if (window.location.pathname.endsWith("/nordicCompanyReport.sp")) {
-                console.log("🌍 Non-Norwegian company detected, skipping formatting.");
-                return companyName; // Return as-is for non-Norwegian companies
+                console.log("🌍 Non-Norwegian company detected, replacing D-U-N-S with correct organization number...");
+                return replaceDUNSWithOrgNumber(companyName);
             }
 
             return formatCompanyName(companyName); // Apply formatting for Norwegian companies
         }
-        
+
         console.warn("⚠ Company name not found! Setting up observer...");
         observeCompanyName();
         return title; // Fallback until observer finds the company name
     }
-    
+
+    function replaceDUNSWithOrgNumber(companyName) {
+        let orgNumber = "";
+        let dunsElement = Array.from(document.querySelectorAll("li")).find(el => el.innerText.includes("D-U-N-S:"));
+        let correctElement = Array.from(document.querySelectorAll("li")).find(el =>
+            el.innerText.includes("Regnr:") ||
+            el.innerText.includes("CVR-nr:") ||
+            el.innerText.includes("Y TUNNIS:")
+        );
+
+        if (correctElement) {
+            let text = correctElement.innerText;
+            let match = text.match(/\d+/); // Extract digits
+
+            if (match) {
+                orgNumber = match[0];
+
+                // Special formatting for Swedish "Regnr:"
+                if (text.includes("Regnr:") && orgNumber.length === 10) {
+                    orgNumber = `${orgNumber.slice(0, 6)}-${orgNumber.slice(6)}`;
+                }
+            }
+        }
+
+        if (dunsElement && orgNumber) {
+            console.log(`🔄 Replacing D-U-N-S: with ${orgNumber}`);
+            return companyName.replace(/\b\d{9}\b/, orgNumber); // Replace the D-U-N-S number with the correct one
+        }
+
+        return companyName; // Return as-is if no replacement is found
+    }
+
     function observeCompanyName() {
         const observer = new MutationObserver((mutations, obs) => {
             let companyElement = Array.from(document.querySelectorAll("h2")).find(el => /\b\d{9}\b/.test(el.innerText));
-            
+
             if (companyElement) {
                 let companyName = companyElement.innerText.trim();
                 console.log("🔍 Observer detected company name:", companyName);
@@ -61,25 +95,30 @@ function processSoliditetTitle(title) {
                 processPageTitle(); // Retry title copy
             }
         });
-        
+
         observer.observe(document.body, { childList: true, subtree: true });
     }
-    
+
     function formatCompanyName(companyName) {
         // Extract the organization number
         let orgNumberMatch = companyName.match(/\b\d{9}\b/);
         let orgNumber = orgNumberMatch ? orgNumberMatch[0] : "";
-        
+
         // Remove the organization number from the string
         companyName = companyName.replace(/\b\d{9}\b/, "").trim();
-        
-        // Apply formatting for suffixes and domains
-        companyName = fixCompanySuffixes(companyName);
-        companyName = fixDomainCase(companyName);
 
-        return companyName + (orgNumber ? " " + orgNumber : "");
+        // Convert to Title Case
+        let formattedName = properTitleCase(companyName);
+
+        // Ensure domain suffixes are properly formatted
+        formattedName = fixDomainCase(formattedName);
+
+        // Ensure suffixes remain untouched
+        formattedName = fixCompanySuffixes(formattedName);
+
+        return formattedName + (orgNumber ? " " + orgNumber : "");
     }
-    
+
     return findCompanyName();
 }
 
@@ -142,14 +181,17 @@ function processAmazonTitle(title) {
 function processYouTubeTitle(title) {
     console.log("🎬 Processing title for YouTube");
 
-    // Remove " - YouTube" at the end
-	title = title.replace(/ - YouTube$/, "").trim();
+    // Remove "- YouTube" from the end
+    title = title.replace(/ - YouTube$/, "").trim();
 
-    // Remove anything after and including " [" or " ("
-    title = title.split(" [")[0].split(" (")[0].trim();
+    // Remove anything after " ("
+    title = title.split(/ \[|\(/)[0].trim();
 
-    // Apply title case formatting while preserving big words
+    // Apply proper title case
     let formattedTitle = properTitleCase(title);
+
+    // Ensure capitalization of the first word after " - "
+    formattedTitle = formattedTitle.replace(/ - (\w)/g, (_, firstLetter) => ` - ${firstLetter.toUpperCase()}`);
 
     console.log("📋 Formatted Title:", formattedTitle);
     return formattedTitle;
@@ -258,6 +300,7 @@ function processGenericTitle(title) {
 
 
 
+
 // Utility function to get company name from external site
 function fetchCompanyName(orgNumber, callback) {
     console.log(`🌐 Fetching company name for Org#: ${orgNumber}`);
@@ -269,7 +312,7 @@ function fetchCompanyName(orgNumber, callback) {
     }, 1000);
 }
 
-// Utility function to fix company suffixes
+// Utility function to fix company suffixes without altering the main company name
 function fixCompanySuffixes(companyName) {
     const suffixes = new Set([
         "AS", "ASA", "DA", "ANS", "ENK", "BA", "SE", "NUF", "KF", "IKS", "STI", 
@@ -280,12 +323,15 @@ function fixCompanySuffixes(companyName) {
     let words = companyName.split(" ");
     if (words.length > 1) {
         let lastWord = words[words.length - 1];
+
+        // If the last word is a recognized suffix, ensure it is in uppercase
         if (suffixes.has(lastWord.toUpperCase())) {
-            let baseName = words.slice(0, -1).join(" ");
-            return properTitleCase(baseName) + " " + lastWord.toUpperCase();
+            words[words.length - 1] = lastWord.toUpperCase();
+            return words.join(" "); // Preserve original formatting of other words
         }
     }
-    return properTitleCase(companyName);
+    
+    return companyName; // Return unchanged if no suffix is found
 }
 
 // Utility function to process domain names
@@ -299,54 +345,77 @@ function fixDomainCase(text) {
 // Converts text to Title Case, preserving acronyms in `bigWords`
 function properTitleCase(text) {
     const smallWords = new Set([
-	    "a", "an", "the", "and", "but", "or", "nor", "for", "so", "yet",
-		"at", "by", "in", "of", "on", "to", "up", "with", "as", "if", "is", 
-		"it", "than", "that", "via"
-]);
-    
-	const bigWords = new Set([
-		"ABBA", "AC", "AC/DC", "ADIDAS", "AFK", "AI", "AMD", "A$AP", "AWOLNATION", 
-		"BBL", "BFF", "BLK", "JKS", "BRB", "BTS", "BTW", "CBGB", "CHIPS", "CHVRCHES", 
-		"CNR", "CQ", "DAFT PUNK", "DC", "DEBS", "DMT", "DM", "DNA", "DOA", "DUI", "DURRY", 
-		"DWNTWN", "DYWTYLM", "EDM", "EOD", "ETA", "FARTBARF", "FIDLAR", "FIST", "FIZZ", 
-		"FML", "FOD", "FTW", "FUBAR", "FYI", "GATTACA", "GG", "GIFT", "GMO", "GNR", "GOAT", 
-		"GTFO", "GWAR", "HAIM", "HBD", "HBU", "HEALTH", "HMU", "HOTS", "HSBF", "IAMDYNAMITE", 
-		"IAMX", "IBM", "IDC", "IDGAF", "IFHY", "IKR", "ILY", "IMO", "INXS", "IKEA", "IRL", 
-		"JK", "JPNSGRLS", "KISS", "LCD", "SOUNDSYSTEM", "LFG", "LIT", "LMAO", "LMK", "LOL", 
-		"MEST", "MGMT", "MIA", "MIB", "MILF", "MNDR", "MSTRKRFT", "MY BABY", "NASA", "NBD", 
-		"NFT", "NFWMB", "NIB", "NOFX", "NSFW", "NSU", "OFC", "OFF!", "OMG", "OK", "OU", "PCU", 
-		"PROF", "PTA", "PUP", "PWR", "BTTM", "RBG", "RCA", "RED", "RIP", "RKO", "RNB", "ROFL", 
-		"RV", "RVIVR", "SBTRKT", "SHC", "SIMP", "SKAAL", "SMD", "SMH", "SOL", "SONY", "SOS", 
-		"STRFKR", "SWLABR", "TBA", "TBH", "TGIF", "THT", "THX", "TMI", "TMNT", "TNT", "TOOL", 
-		"TOPS", "TTD", "TTNG", "TTYL", "TV", "UFO", "UHF", "UTFO", "VFW", "VIP", "VPN", 
-		"WAP", "WIFI", "WHY?", "WTCHS", "WTF", "WTFIGO", "WUSA", "WYD", "XS", "XXX", 
-		"YMCA", "YOLO", "ZEKE"
-	]);
+        // English
+        "a", "an", "the", "and", "but", "or", "nor", "for", "so", "yet",
+        "at", "by", "in", "of", "on", "to", "up", "with", "as", "if", "is",
+        "it", "than", "that", "via", "from", "over", "under", "into", "onto",
 
-    return text
-        .split(/\s+/) // Split on spaces while handling multiple spaces
-        .map((word, index) => {
-            let isBigWord = bigWords.has(word.toUpperCase());
+        // Norwegian / Danish / Swedish
+        "og", "av", "til", "på", "med", "for", "om", "mot", "uten", "etter",
+        "mellom", "under", "over", "ved", "fra", "inn", "ut", "som", "hvis",
 
-            // Convert fully uppercase words (not in bigWords) to title case
-            if (!isBigWord && word === word.toUpperCase()) {
-                word = word.toLowerCase();
+        // German
+        "und", "von", "zum", "zur", "im", "am", "an", "auf", "bei", "durch", "mit",
+        "ohne", "über", "unter", "vor", "nach", "gegen", "aus", "zwischen",
+
+        // French
+        "et", "de", "du", "des", "le", "la", "les", "à", "au", "aux", "en", "sur",
+        "dans", "par", "pour", "sans", "avec", "chez", "sous", "contre", "vers",
+
+        // Spanish
+        "y", "de", "del", "la", "las", "el", "los", "a", "al", "por", "para", "con",
+        "sin", "sobre", "entre", "hacia", "según", "tras", "desde",
+
+        // Dutch
+        "en", "van", "het", "de", "een", "op", "aan", "uit", "bij", "tot", "om",
+        "naar", "met", "over", "onder", "voor", "tussen"
+    ]);
+
+    const bigWords = new Set([
+        // Preserve all-uppercase acronyms like IBM, NASA, etc.
+        "ABBA", "AI", "AMD", "ATM", "BBC", "BTS", "CEO", "DNA", "ETA",
+        "FBI", "GDP", "GPU", "IBM", "IKEA", "IRS", "KFC", "LCD", "LOL",
+        "NASA", "NBA", "NFL", "OMG", "PDF", "RAM", "RIP", "UN", "USB", "VIP", "VPN", "WIFI", "WTF"
+    ]);
+
+    // Split text preserving spaces, hyphens, en/em-dashes, colons
+    let words = text.split(/(\s+|[-–—:])/);
+
+    // Track if the current word should be capitalized regardless of being small
+    let capitalizeNext = true;
+
+    return words
+        .map((word) => {
+            if (/^[-–—:\s]+$/.test(word)) {
+                // After a separator, next word should be capitalized
+                capitalizeNext = /[-–—:]/.test(word);
+                return word;
             }
 
-            // Preserve words from bigWords only if they were already capitalized
-            if (isBigWord && word === word.toUpperCase()) {
+            // Handle acronyms (all caps words we want to preserve)
+            if (bigWords.has(word.toUpperCase())) {
+                capitalizeNext = false;
                 return word.toUpperCase();
             }
 
-            // Keep small words lowercase unless they're the first word
-            if (index !== 0 && smallWords.has(word.toLowerCase())) {
-                return word.toLowerCase();
+            // Handle apostrophes within words (both normal ' and curly ’ apostrophes)
+            word = word.replace(/([A-Za-z])['’]([A-Za-z])/g, (_, first, second) => 
+                first + "’" + second.toLowerCase()
+            );
+
+            let lowerWord = word.toLowerCase();
+
+            if (capitalizeNext || !smallWords.has(lowerWord)) {
+                capitalizeNext = false;
+                // Regular word: Title-case it
+                return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
             }
 
-            // Handle apostrophes correctly (e.g., "He's" should remain "He's", not "He'S")
-            return word.replace(/\b\w/g, char => char.toUpperCase()).replace(/'([A-Z])/g, match => match.toLowerCase());
+            // Small word (and not at the start), stays lowercase
+            capitalizeNext = false;
+            return lowerWord;
         })
-        .join(" ");
+        .join("");
 }
 
 // Listen for message to copy the title
@@ -374,7 +443,6 @@ browserAPI.runtime.onMessage.addListener((message) => {
 
     copyToClipboard(copyText);
 });
-
 
 // Function to copy text to clipboard
 function copyToClipboard(text) {
