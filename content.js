@@ -7,7 +7,8 @@ const siteHandlers = {
     "proff.no": processProffTitle,
     "theporndb.net": processAdultdbTitle,
     "mail.google.com": processGmailTitle,
-    "reddit.com": processRedditTitle  // ✅ Add Reddit support
+    "soliditet.no": processSoliditetTitle,
+    "reddit.com": processRedditTitle
 };
 
 function getSiteHandler() {
@@ -20,6 +21,60 @@ function getSiteHandler() {
   return processGenericTitle;
 }
 
+
+// Processes title for Soliditet
+function processSoliditetTitle(title) {
+    console.log("🔵 Processing title for Soliditet");
+    
+    function findCompanyName() {
+        console.log("🔍 Searching for company name...");
+        
+        // Select the h2 that contains a 9-digit number (organization number)
+        let companyElement = Array.from(document.querySelectorAll("h2")).find(el => /\b\d{9}\b/.test(el.innerText));
+        
+        if (companyElement) {
+            let companyName = companyElement.innerText.trim();
+            console.log("✅ Found company name:", companyName);
+            return formatCompanyName(companyName);
+        }
+        
+        console.warn("⚠ Company name not found! Setting up observer...");
+        observeCompanyName();
+        return title; // Fallback until observer finds the company name
+    }
+    
+    function observeCompanyName() {
+        const observer = new MutationObserver((mutations, obs) => {
+            let companyElement = Array.from(document.querySelectorAll("h2")).find(el => /\b\d{9}\b/.test(el.innerText));
+            
+            if (companyElement) {
+                let companyName = companyElement.innerText.trim();
+                console.log("🔍 Observer detected company name:", companyName);
+                obs.disconnect();
+                processPageTitle(); // Retry title copy
+            }
+        });
+        
+        observer.observe(document.body, { childList: true, subtree: true });
+    }
+    
+    function formatCompanyName(companyName) {
+        // Extract the organization number
+        let orgNumberMatch = companyName.match(/\b\d{9}\b/);
+        let orgNumber = orgNumberMatch ? orgNumberMatch[0] : "";
+        
+        // Remove the organization number from the string
+        companyName = companyName.replace(/\b\d{9}\b/, "").trim();
+        
+        // Apply formatting for suffixes and domains
+        companyName = fixCompanySuffixes(companyName);
+        companyName = fixDomainCase(companyName);
+
+        return companyName + (orgNumber ? " " + orgNumber : "");
+    }
+    
+    return findCompanyName();
+}
 
 // Processes title for Reddit
 function processRedditTitle(title) {
@@ -34,7 +89,6 @@ function processRedditTitle(title) {
     console.log("📋 Formatted Title:", title);
     return title;
 }
-
 
 // Processes title for Gmail
 function processGmailTitle(title) {
@@ -196,6 +250,34 @@ function processGenericTitle(title) {
 }
 
 
+
+
+// Utility function to fix company suffixes
+function fixCompanySuffixes(companyName) {
+    const suffixes = new Set([
+        "AS", "ASA", "DA", "ANS", "ENK", "BA", "SE", "NUF", "KF", "IKS", "STI", 
+        "AB", "HB", "KB", "EF", "EK", "A/S", "ApS", "IVS", "P/S", "K/S", "I/S", 
+        "FMBA", "SMBA"
+    ]);
+
+    let words = companyName.split(" ");
+    if (words.length > 1) {
+        let lastWord = words[words.length - 1];
+        if (suffixes.has(lastWord.toUpperCase())) {
+            let baseName = words.slice(0, -1).join(" ");
+            return properTitleCase(baseName) + " " + lastWord.toUpperCase();
+        }
+    }
+    return properTitleCase(companyName);
+}
+
+// Utility function to process domain names
+function fixDomainCase(text) {
+    const domainPattern = /\b((?:[a-zA-Z0-9-]+)\.([a-zA-Z]{2,}))\b/g;
+    return text.replace(domainPattern, (match, domainName, tld) => {
+        return domainName.replace(new RegExp("\\." + tld + "$"), "." + tld.toLowerCase());
+    });
+}
 
 // Converts text to Title Case, preserving acronyms in `bigWords`
 function properTitleCase(text) {
