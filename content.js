@@ -35,7 +35,14 @@ function processSoliditetTitle(title) {
         if (companyElement) {
             let companyName = companyElement.innerText.trim();
             console.log("✅ Found company name:", companyName);
-            return formatCompanyName(companyName);
+            
+            // Check if the URL ends with "/nordicCompanyReport.sp"
+            if (window.location.pathname.endsWith("/nordicCompanyReport.sp")) {
+                console.log("🌍 Non-Norwegian company detected, skipping formatting.");
+                return companyName; // Return as-is for non-Norwegian companies
+            }
+
+            return formatCompanyName(companyName); // Apply formatting for Norwegian companies
         }
         
         console.warn("⚠ Company name not found! Setting up observer...");
@@ -251,6 +258,16 @@ function processGenericTitle(title) {
 
 
 
+// Utility function to get company name from external site
+function fetchCompanyName(orgNumber, callback) {
+    console.log(`🌐 Fetching company name for Org#: ${orgNumber}`);
+    
+    // Placeholder: Replace this with an actual API request later
+    setTimeout(() => {
+        console.error("❌ Not found.");
+        callback(null);
+    }, 1000);
+}
 
 // Utility function to fix company suffixes
 function fixCompanySuffixes(companyName) {
