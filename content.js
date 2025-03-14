@@ -485,12 +485,7 @@ function processPageTitle() {
   let formattedTitle = siteHandler(title);
 
   try {
-    navigator.clipboard.writeText(formattedTitle)
-      .then(() => console.log("📋 Copied title:", formattedTitle))
-      .catch((err) => {
-        console.warn("⚠ Clipboard API blocked, using fallback method.");
-        copyToClipboard(formattedTitle);
-      });
+    chrome.runtime.sendMessage({ action: "copyToClipboard", text: formattedTitle });
   } catch (e) {
     console.error("❌ Failed to copy title:", e);
     copyToClipboard(formattedTitle);
