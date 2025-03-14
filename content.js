@@ -373,7 +373,7 @@ function properTitleCase(text) {
 
     const bigWords = new Set([
         // Preserve all-uppercase acronyms like IBM, NASA, etc.
-        "ABBA", "AI", "AMD", "ATM", "BBC", "BTS", "CEO", "DNA", "ETA",
+        "ABBA", "AC/DC", "AI", "AMD", "ATM", "BBC", "BTS", "CEO", "DNA", "ETA",
         "FBI", "GDP", "GPU", "IBM", "IKEA", "IRS", "KFC", "LCD", "LOL",
         "NASA", "NBA", "NFL", "OMG", "PDF", "RAM", "RIP", "UN", "USB", "VIP", "VPN", "WIFI", "WTF"
     ]);
@@ -392,14 +392,20 @@ function properTitleCase(text) {
                 return word;
             }
 
-            // Handle acronyms (all caps words we want to preserve)
+            // 🔥 FIX: Directly detect acronyms with periods and capitalize them fully.
+            if (/^([a-zA-Z]\.)+[a-zA-Z]\.?$/.test(word)) {
+                return word.toUpperCase();
+            }
+
+            // Handle known uppercase acronyms (e.g., NASA, IBM)
             if (bigWords.has(word.toUpperCase())) {
                 capitalizeNext = false;
                 return word.toUpperCase();
             }
 
             // Handle apostrophes within words (both normal ' and curly ’ apostrophes)
-            word = word.replace(/([A-Za-z])['’]([A-Za-z])/g, (_, first, second) => 
+            // Handle apostrophes within words
+            word = word.replace(/([A-Za-z])['’]([A-Za-z])/g, (_, first, second) =>
                 first + "’" + second.toLowerCase()
             );
 
@@ -417,6 +423,10 @@ function properTitleCase(text) {
         })
         .join("");
 }
+
+
+
+
 
 // Listen for message to copy the title
 const browserAPI = typeof browser !== "undefined" ? browser : chrome;
