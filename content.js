@@ -99,25 +99,29 @@ function processSoliditetTitle(title) {
         observer.observe(document.body, { childList: true, subtree: true });
     }
 
-    function formatCompanyName(companyName) {
-        // Extract the organization number
-        let orgNumberMatch = companyName.match(/\b\d{9}\b/);
-        let orgNumber = orgNumberMatch ? orgNumberMatch[0] : "";
+	function formatCompanyName(companyName) {
+		// Extract the organization number
+		let orgNumberMatch = companyName.match(/\b\d{9}\b/);
+		let orgNumber = orgNumberMatch ? orgNumberMatch[0] : "";
 
-        // Remove the organization number from the string
-        companyName = companyName.replace(/\b\d{9}\b/, "").trim();
+		// Remove the organization number from the string
+		companyName = companyName.replace(/\b\d{9}\b/, "").trim();
 
-        // Convert to Title Case
-        let formattedName = properTitleCase(companyName);
+		// Convert to Title Case
+		let formattedName = properTitleCase(companyName);
 
-        // Ensure domain suffixes are properly formatted
-        formattedName = fixDomainCase(formattedName);
+		// Ensure adresses suffix remain untouched
+		formattedName = fixAddressSuffixes(formattedName);
 
-        // Ensure suffixes remain untouched
-        formattedName = fixCompanySuffixes(formattedName);
+		// Ensure domain suffixes are properly formatted
+		formattedName = fixDomainCase(formattedName);
 
-        return formattedName + (orgNumber ? " " + orgNumber : "");
-    }
+		// Ensure company suffixes remain untouched
+		formattedName = fixCompanySuffixes(formattedName);
+
+		return formattedName + (orgNumber ? " " + orgNumber : "");
+	}
+
 
     return findCompanyName();
 }
@@ -181,10 +185,13 @@ function processAmazonTitle(title) {
 function processYouTubeTitle(title) {
     console.log("🎬 Processing title for YouTube");
 
+    // Remove notification count (e.g., "(1) Video Title - YouTube")
+    title = title.replace(/^\(\d+\)\s*/, ""); // Removes "(X) " at the start
+
     // Remove "- YouTube" from the end
     title = title.replace(/ - YouTube$/, "").trim();
 
-    // Remove anything after " ("
+    // Remove anything after " (" or " [" (but not the entire title!)
     title = title.split(/ \[|\(/)[0].trim();
 
     // Apply proper title case
@@ -196,6 +203,7 @@ function processYouTubeTitle(title) {
     console.log("📋 Formatted Title:", formattedTitle);
     return formattedTitle;
 }
+
 
 // Processes title for proff.no
 function processProffTitle(title) {
@@ -269,7 +277,12 @@ function processAdultdbTitle(title) {
 
 // Processes generic page titles (default behavior)
 function processGenericTitle(title) {
-    // Remove common separators like " - ", " :: ", " — ", " | "
+    console.log("🟢 Processing generic title");
+
+    // Remove notification count (e.g., "(1) Page Title")
+    title = title.replace(/^\(\d+\)\s*/, ""); // Removes "(X) " at the start
+
+    // Remove common separators like " - ", " :: ", " — ", " | ", " : "
     let cleanTitle = title.split(/ - | :: | — | \| | : /)[0].trim();
 
     // Check if the title contains a dash and a question
@@ -295,8 +308,10 @@ function processGenericTitle(title) {
         }
     }
 
+    console.log("📋 Formatted Title:", cleanTitle);
     return cleanTitle;
 }
+
 
 
 
@@ -332,6 +347,11 @@ function fixCompanySuffixes(companyName) {
     }
     
     return companyName; // Return unchanged if no suffix is found
+}
+
+// Utility function to preserve adresses
+function fixAddressSuffixes(text) {
+    return text.replace(/(\d+)([A-Z])\b/g, (_, number, letter) => `${number}${letter}`);
 }
 
 // Utility function to process domain names
@@ -391,6 +411,11 @@ function properTitleCase(text) {
                 capitalizeNext = /[-–—:]/.test(word);
                 return word;
             }
+
+			// Preserve uppercase address suffixes
+			if (/\d+[A-Z]\b/.test(word)) {
+				return word; // Don't change it
+			}
 
             // 🔥 FIX: Directly detect acronyms with periods and capitalize them fully.
             if (/^([a-zA-Z]\.)+[a-zA-Z]\.?$/.test(word)) {
