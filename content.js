@@ -3,12 +3,14 @@ console.log("🟡 Content script loaded!");
 // Determines which function to use based on the website
 const siteHandlers = {
     "amazon.": processAmazonTitle,
-    "youtube.com": processYouTubeTitle,
-    "proff.no": processProffTitle,
-    "theporndb.net": processAdultdbTitle,
     "mail.google.com": processGmailTitle,
+    "instagram.com": processInstagramTitle,
+    "theporndb.net": processAdultdbTitle,
+    "proff.no": processProffTitle,
     "soliditet.no": processSoliditetTitle,
-    "reddit.com": processRedditTitle
+    "x.com": processTwitterTitle,
+    "reddit.com": processRedditTitle,
+    "youtube.com": processYouTubeTitle,
 };
 
 function getSiteHandler() {
@@ -23,7 +25,147 @@ function getSiteHandler() {
 
 
 
+// Processes title for Amazon product pages
+function processAmazonTitle(title) {
+  console.log("🛒 Processing title for Amazon");
 
+  // Remove "Amazon: " or "Amazon.com: " from the beginning if present
+  title = title.replace(/^Amazon(\.com)?:\s*/i, "");
+
+  // Find the first occurrence of ",", " - ", or " – " and trim at that point
+  let stopChars = [",", " - ", " – "];
+  let minIndex = title.length; // Start with the full length of the title
+
+  for (let char of stopChars) {
+    let index = title.indexOf(char);
+    if (index !== -1 && index < minIndex) {
+      minIndex = index;
+    }
+  }
+
+  // Trim title at the first separator found
+  let trimmedTitle = title.substring(0, minIndex).trim();
+
+  console.log("📋 Formatted Title:", trimmedTitle);
+  return trimmedTitle;
+}
+
+// Processes title for Gmail
+function processGmailTitle(title) {
+  console.log("📧 Processing title for Gmail");
+
+  let parts = title.split(" - ");
+  
+  for (let part of parts) {
+    if (part.includes("@")) {
+      console.log("📋 Extracted Email:", part);
+      return part; // Return the email address
+    }
+  }
+  console.warn("⚠ No email found in Gmail title!");
+  return title; // Fallback in case no email is found
+}
+
+// Processes title for Instagram pages by extracting the username
+function processInstagramTitle(title) {
+    console.log("📸 Processing title for Instagram");
+
+    // Try to find the username in the specific span class
+    let usernameElement = document.querySelector("span.x1lliihq.x193iq5w.x6ikm8r.x10wlt62.xlyipyv.xuxw1ft");
+
+    if (usernameElement) {
+        let username = usernameElement.innerText.trim();
+        console.log("📋 Extracted Instagram username:", username);
+        return `@${username}`; // Return the username prefixed with "@"
+    }
+
+    console.warn("⚠ Instagram username not found!");
+    return "Instagram"; // Fallback if username cannot be found
+}
+
+// Processes title for theporndb.net
+function processAdultdbTitle(title) {
+  console.log("🔴 Processing title for ThePornDB");
+
+  function formatDate(month, day, year) {
+    const months = {
+      Jan: "01", Feb: "02", Mar: "03", Apr: "04", May: "05", Jun: "06",
+      Jul: "07", Aug: "08", Sep: "09", Oct: "10", Nov: "11", Dec: "12"
+    };
+    return `${year}-${months[month]}-${day.padStart(2, '0')}`;
+  }
+
+  // Remove extra parts of the title
+  title = title.split(/ :: /)[0].trim();
+
+  let dateRegex = /\b([A-Za-z]{3})\s+(\d{1,2}),\s+(\d{4})\b/;
+  let dateMatch = null;
+
+  // Possible sources for the date
+  let sources = [
+    document.body.innerText,
+    document.body.innerHTML,
+    document.querySelector("meta[property='article:published_time']")?.content,
+    document.querySelector("meta[name='date']")?.content,
+    ...Array.from(document.querySelectorAll("h1, h2, h3, p, span")).map(el => el.innerText)
+  ];
+
+  // Try to find a date on the page
+  for (let source of sources) {
+    if (source && typeof source === "string") {
+      let match = source.match(dateRegex);
+      if (match) {
+        dateMatch = match;
+        break;
+      }
+    }
+  }
+
+  if (dateMatch) {
+    let formattedDate = formatDate(dateMatch[1], dateMatch[2], dateMatch[3]);
+    if (title.includes("/")) {
+      title = title.replace(/\s*\/\s*/, ` ${formattedDate} `);
+    }
+    console.log("✅ Found Date:", dateMatch[0], "➡ Reformatted as:", formattedDate);
+  } else {
+    console.warn("⚠ No date found on the page!");
+  }
+
+  // Replace colons with dashes
+  title = title.replace(/:/g, " -");
+
+  return title;
+}
+
+// Processes title for proff.no
+function processProffTitle(title) {
+  console.log("🔵 Processing title for proff.no");
+
+  let parts = title.split(" - ");
+
+  if (parts.length >= 3) {
+    // Remove all spaces in the second part before joining
+    let formattedTitle = parts[0] + " " + parts[1].replace(/\s+/g, "");
+
+    console.log("📋 Formatted Title:", formattedTitle);
+    return formattedTitle;
+  }
+  return title;
+}
+
+// Processes title for Reddit
+function processRedditTitle(title) {
+    console.log("🔴 Processing title for Reddit");
+
+    // Remove flair (anything inside brackets at the beginning)
+    title = title.replace(/^\[.*?\]\s*/, "");
+
+    // Remove everything after and including " : "
+    title = title.split(" : ")[0].trim();
+
+    console.log("📋 Formatted Title:", title);
+    return title;
+}
 
 // Processes title for Soliditet
 function processSoliditetTitle(title) {
@@ -126,59 +268,19 @@ function processSoliditetTitle(title) {
     return findCompanyName();
 }
 
-// Processes title for Reddit
-function processRedditTitle(title) {
-    console.log("🔴 Processing title for Reddit");
+// Processes title for Twitter pages
+function processTwitterTitle(title) {
+    console.log("🔵 Processing title for Twitter");
 
-    // Remove flair (anything inside brackets at the beginning)
-    title = title.replace(/^\[.*?\]\s*/, "");
-
-    // Remove everything after and including " : "
-    title = title.split(" : ")[0].trim();
-
-    console.log("📋 Formatted Title:", title);
-    return title;
-}
-
-// Processes title for Gmail
-function processGmailTitle(title) {
-  console.log("📧 Processing title for Gmail");
-
-  let parts = title.split(" - ");
-  
-  for (let part of parts) {
-    if (part.includes("@")) {
-      console.log("📋 Extracted Email:", part);
-      return part; // Return the email address
+    // Check if the title contains an @username
+    const usernameMatch = title.match(/@\w+/);
+    if (usernameMatch) {
+        console.log("📋 Extracted Twitter username:", usernameMatch[0]);
+        return usernameMatch[0]; // Return the extracted @username
     }
-  }
-  console.warn("⚠ No email found in Gmail title!");
-  return title; // Fallback in case no email is found
-}
 
-// Processes title for Amazon product pages
-function processAmazonTitle(title) {
-  console.log("🛒 Processing title for Amazon");
-
-  // Remove "Amazon: " or "Amazon.com: " from the beginning if present
-  title = title.replace(/^Amazon(\.com)?:\s*/i, "");
-
-  // Find the first occurrence of ",", " - ", or " – " and trim at that point
-  let stopChars = [",", " - ", " – "];
-  let minIndex = title.length; // Start with the full length of the title
-
-  for (let char of stopChars) {
-    let index = title.indexOf(char);
-    if (index !== -1 && index < minIndex) {
-      minIndex = index;
-    }
-  }
-
-  // Trim title at the first separator found
-  let trimmedTitle = title.substring(0, minIndex).trim();
-
-  console.log("📋 Formatted Title:", trimmedTitle);
-  return trimmedTitle;
+    // If no @username is found, process as a generic title
+    return processGenericTitle(title);
 }
 
 // Processes title for YouTube videos
@@ -204,77 +306,6 @@ function processYouTubeTitle(title) {
     return formattedTitle;
 }
 
-
-// Processes title for proff.no
-function processProffTitle(title) {
-  console.log("🔵 Processing title for proff.no");
-
-  let parts = title.split(" - ");
-
-  if (parts.length >= 3) {
-    // Remove all spaces in the second part before joining
-    let formattedTitle = parts[0] + " " + parts[1].replace(/\s+/g, "");
-
-    console.log("📋 Formatted Title:", formattedTitle);
-    return formattedTitle;
-  }
-  return title;
-}
-
-// Processes title for theporndb.net
-function processAdultdbTitle(title) {
-  console.log("🔴 Processing title for ThePornDB");
-
-  function formatDate(month, day, year) {
-    const months = {
-      Jan: "01", Feb: "02", Mar: "03", Apr: "04", May: "05", Jun: "06",
-      Jul: "07", Aug: "08", Sep: "09", Oct: "10", Nov: "11", Dec: "12"
-    };
-    return `${year}-${months[month]}-${day.padStart(2, '0')}`;
-  }
-
-  // Remove extra parts of the title
-  title = title.split(/ :: /)[0].trim();
-
-  let dateRegex = /\b([A-Za-z]{3})\s+(\d{1,2}),\s+(\d{4})\b/;
-  let dateMatch = null;
-
-  // Possible sources for the date
-  let sources = [
-    document.body.innerText,
-    document.body.innerHTML,
-    document.querySelector("meta[property='article:published_time']")?.content,
-    document.querySelector("meta[name='date']")?.content,
-    ...Array.from(document.querySelectorAll("h1, h2, h3, p, span")).map(el => el.innerText)
-  ];
-
-  // Try to find a date on the page
-  for (let source of sources) {
-    if (source && typeof source === "string") {
-      let match = source.match(dateRegex);
-      if (match) {
-        dateMatch = match;
-        break;
-      }
-    }
-  }
-
-  if (dateMatch) {
-    let formattedDate = formatDate(dateMatch[1], dateMatch[2], dateMatch[3]);
-    if (title.includes("/")) {
-      title = title.replace(/\s*\/\s*/, ` ${formattedDate} `);
-    }
-    console.log("✅ Found Date:", dateMatch[0], "➡ Reformatted as:", formattedDate);
-  } else {
-    console.warn("⚠ No date found on the page!");
-  }
-
-  // Replace colons with dashes
-  title = title.replace(/:/g, " -");
-
-  return title;
-}
-
 // Processes generic page titles (default behavior)
 function processGenericTitle(title) {
     console.log("🟢 Processing generic title");
@@ -283,7 +314,7 @@ function processGenericTitle(title) {
     title = title.replace(/^\(\d+\)\s*/, ""); // Removes "(X) " at the start
 
     // Remove common separators like " - ", " :: ", " — ", " | ", " : "
-    let cleanTitle = title.split(/ - | :: | — | \| | : /)[0].trim();
+    let cleanTitle = title.split(/ - | :: | — | \| | : | · /)[0].trim();
 
     // Check if the title contains a dash and a question
     let dashParts = title.split(" - ");
