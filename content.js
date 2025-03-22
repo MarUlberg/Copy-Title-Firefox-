@@ -8,6 +8,8 @@ const siteHandlers = {
     "theporndb.net": processAdultdbTitle,
     "proff.no": processProffTitle,
     "soliditet.no": processSoliditetTitle,
+    "open.spotify.com": processSpotifyTitle,
+    "twitch.tv": processTwitchTitle,
     "x.com": processTwitterTitle,
     "reddit.com": processRedditTitle,
     "youtube.com": processYouTubeTitle,
@@ -268,6 +270,47 @@ function processSoliditetTitle(title) {
     return findCompanyName();
 }
 
+// Processes title for Spotify pages
+function processSpotifyTitle(title) {
+    console.log("🎵 Processing title for Spotify");
+
+    // Remove trailing " | Spotify"
+    title = title.replace(/\s*\|\s*Spotify$/, "").trim();
+
+    // Remove "song and lyrics by " (case-insensitive)
+    title = title.replace(/song and lyrics by /i, "");
+
+    // Handle album formatting: "Album Title - Album by Artist" → "Artist – Album Title"
+    const albumMatch = title.match(/^(.*?) - Album by (.*)$/i);
+    if (albumMatch) {
+        const album = albumMatch[1].trim();
+        const artist = albumMatch[2].trim();
+        title = `${artist} - ${album}`;
+    }
+
+    // Replace " • " with " - "
+    title = title.replace(/ • /g, " - ");
+
+    console.log("📋 Formatted Spotify title:", title);
+    return title;
+}
+
+// Processes title for Twitch pages by extracting the streamer's username
+function processTwitchTitle(title) {
+    console.log("🎮 Processing title for Twitch");
+
+    // Try to extract the streamer’s username from an <h1> element
+    const h1 = document.querySelector("h1");
+    if (h1 && h1.innerText.trim()) {
+        const username = h1.innerText.trim();
+        console.log("📋 Extracted Twitch username from <h1>:", username);
+        return `${username}`;
+    }
+
+    console.warn("⚠ No <h1> username found on Twitch page.");
+    return processGenericTitle(title); // Fallback if nothing is found
+}
+
 // Processes title for Twitter pages
 function processTwitterTitle(title) {
     console.log("🔵 Processing title for Twitter");
@@ -313,8 +356,8 @@ function processGenericTitle(title) {
     // Remove notification count (e.g., "(1) Page Title")
     title = title.replace(/^\(\d+\)\s*/, ""); // Removes "(X) " at the start
 
-    // Remove common separators like " - ", " :: ", " — ", " | ", " : "
-    let cleanTitle = title.split(/ - | :: | — | \| | : | · /)[0].trim();
+    // Remove common separators
+    let cleanTitle = title.split(/ - | – | — | : | :: | \| | · /)[0].trim();
 
     // Check if the title contains a dash and a question
     let dashParts = title.split(" - ");
