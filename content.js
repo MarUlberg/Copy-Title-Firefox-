@@ -5,6 +5,7 @@ const siteHandlers = {
     "amazon.": processAmazonTitle,
     "mail.google.com": processGmailTitle,
     "instagram.com": processInstagramTitle,
+    "mobygames.com": processMobygamesTitle,
     "theporndb.net": processAdultdbTitle,
     "proff.no": processProffTitle,
     "soliditet.no": processSoliditetTitle,
@@ -83,6 +84,23 @@ function processInstagramTitle(title) {
 
     console.warn("⚠ Instagram username not found!");
     return "Instagram"; // Fallback if username cannot be found
+}
+
+// Processes title for MobyGames
+function processMobygamesTitle(title) {
+    console.log("🎮 Processing title for MobyGames");
+
+    const mobyPattern = /( box covers| cover or packaging material) - MobyGames$/;
+
+    if (mobyPattern.test(title)) {
+        let cleaned = title.replace(mobyPattern, "").trim();
+        cleaned = cleaned.replace(/:/g, "_"); // Replace colons with underscores
+        console.log("📋 Formatted MobyGames title:", cleaned);
+        return cleaned;
+    }
+
+    console.warn("ℹ️ Not a MobyGames box/packaging page — using generic processing.");
+    return processGenericTitle(title);
 }
 
 // Processes title for theporndb.net
@@ -169,7 +187,7 @@ function processRedditTitle(title) {
     return title;
 }
 
-// Processes title for Soliditet
+// Processes title for soliditet.no
 function processSoliditetTitle(title) {
     console.log("🔵 Processing title for Soliditet");
 
