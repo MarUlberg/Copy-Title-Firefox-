@@ -425,7 +425,7 @@ function fixCompanySuffixes(companyName) {
         "AS", "ASA", "DA", "ANS", "ENK", "NUF", "IKS", "KF", "STI", "EK", "BA", "SE", "PK",
         "AB", "HB", "KB", "A/S", "ApS", "IVS", "P/S", "K/S", "I/S", "FMBA", "SMBA", "OYJ",
         "AG", "GMBH", "SA", "SAS", "SARL", "SCA", "SCRL", "SNC", "SL", "UAB", "BV", "NV",
-        "SDN BHD", "PLC"
+        "BHD", "PLC"
     ]);
 
     let words = companyName.split(" ");
