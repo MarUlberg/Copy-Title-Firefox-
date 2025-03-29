@@ -422,9 +422,10 @@ function fetchCompanyName(orgNumber, callback) {
 // Utility function to fix company suffixes without altering the main company name
 function fixCompanySuffixes(companyName) {
     const suffixes = new Set([
-        "AS", "ASA", "DA", "ANS", "ENK", "BA", "SE", "NUF", "KF", "IKS", "STI", 
-        "AB", "HB", "KB", "EF", "EK", "A/S", "ApS", "IVS", "P/S", "K/S", "I/S", 
-        "FMBA", "SMBA"
+        "AS", "ASA", "DA", "ANS", "ENK", "NUF", "IKS", "KF", "STI", "EK", "BA", "SE", "PK",
+        "AB", "HB", "KB", "A/S", "ApS", "IVS", "P/S", "K/S", "I/S", "FMBA", "SMBA", "OYJ",
+        "AG", "GMBH", "SA", "SAS", "SARL", "SCA", "SCRL", "SNC", "SL", "UAB", "BV", "NV",
+        "SDN BHD", "PLC"
     ]);
 
     let words = companyName.split(" ");
@@ -487,7 +488,7 @@ function properTitleCase(text) {
         // Preserve all-uppercase acronyms like IBM, NASA, etc.
         "ABBA", "AC/DC", "AI", "AMD", "ATM", "BBC", "BTS", "CEO", "DNA", "ETA",
         "FBI", "GDP", "GPU", "IBM", "IKEA", "IRS", "KFC", "LCD", "LOL",
-        "NASA", "NBA", "NFL", "OMG", "PDF", "RAM", "RIP", "UN", "USB", "VIP", "VPN", "WIFI", "WTF"
+        "NASA", "NBA", "NFL", "OMG", "PDF", "RAM", "RIP", "UN", "USA", "USB", "VIP", "VPN", "WIFI", "WTF"
     ]);
 
     // Split text preserving spaces, hyphens, en/em-dashes, colons
