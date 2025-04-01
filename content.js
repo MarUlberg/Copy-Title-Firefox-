@@ -26,8 +26,6 @@ function getSiteHandler() {
   return processGenericTitle;
 }
 
-
-
 // Processes title for Amazon product pages
 function processAmazonTitle(title) {
   console.log("🛒 Processing title for Amazon");
@@ -404,10 +402,6 @@ function processGenericTitle(title) {
     return cleanTitle;
 }
 
-
-
-
-
 // Utility function to get company name from external site
 function fetchCompanyName(orgNumber, callback) {
     console.log(`🌐 Fetching company name for Org#: ${orgNumber}`);
@@ -541,10 +535,6 @@ function properTitleCase(text) {
         })
         .join("");
 }
-
-
-
-
 
 // Listen for message to copy the title
 const browserAPI = typeof browser !== "undefined" ? browser : chrome;
