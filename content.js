@@ -282,8 +282,148 @@ function processSoliditetTitle(title) {
 		return formattedName + (orgNumber ? " " + orgNumber : "");
 	}
 
-
     return findCompanyName();
+}
+
+function processSoliditetOwner(title) {
+    console.log("🟦 Processing Soliditet Owner");
+
+    // Helpers
+    function capitalizeCompound(token) {
+        return token
+            .toLocaleLowerCase("nb-NO")
+            .replace(/(^|[-'\u2019])([^\s-'\u2019])/g, (m, sep, ch) =>
+                sep + ch.toLocaleUpperCase("nb-NO")
+            );
+    }
+    function capitalizeWords(str) {
+        return str
+            .toLocaleLowerCase("nb-NO")
+            .replace(/(^|[-'\u2019\s])([^\s-'\u2019])/g, (m, sep, ch) =>
+                sep + ch.toLocaleUpperCase("nb-NO")
+            );
+    }
+    function formatCompanyName(companyName) {
+        let formattedName = properTitleCase(companyName);
+        formattedName = fixAddressSuffixes(formattedName);
+        formattedName = fixDomainCase(formattedName);
+        formattedName = fixCompanySuffixes(formattedName);
+        return formattedName;
+    }
+
+    // Find section
+    const section = Array.from(document.querySelectorAll(".section"))
+        .find(s => s.querySelector("h1")?.innerText.trim() === "Aksjonærer");
+    if (!section) {
+        console.warn("⚠ 'Aksjonærer' section not found!");
+        return title;
+    }
+
+    const rows = Array.from(section.querySelectorAll("table tbody tr"))
+        .filter(r => r.querySelectorAll("td").length >= 4);
+
+    if (rows.length === 0) {
+        console.warn("⚠ No valid owner rows found!");
+        return title;
+    }
+
+    const results = rows.map(row => {
+        const cells = row.querySelectorAll("td");
+
+        // Raw fields
+        let rawId = cells[0].innerText.trim().replace(/\s+/g, " "); // could be date OR orgnr
+        let rawName = cells[1].innerText.trim().replace(/\s+/g, " ");
+        let poststedRaw = cells[2].innerText.trim();
+        let ownerShare = cells[3].innerText.trim().replace(/\s+/g, "");
+
+        // Detect if rawId is a valid date (DD-MM-YYYY)
+        let isPerson = /^\d{2}-\d{2}-\d{4}$/.test(rawId);
+
+        let formattedId = "";
+        let formattedName = "";
+
+        if (isPerson) {
+            // Format date -> YYYY-MM-DD
+            formattedId = rawId.replace(/(\d{2})-(\d{2})-(\d{4})/, "$3-$2-$1");
+
+            // Format name -> move first word (last name) to end
+            let nameParts = rawName.split(/\s+/).map(capitalizeCompound);
+            formattedName = [...nameParts.slice(1), nameParts[0]].join(" ");
+        } else {
+            // Company → keep orgnr and run name through pipeline
+            formattedId = rawId;
+            formattedName = formatCompanyName(rawName);
+        }
+
+        // Poststed: normalize spaces, cut dash, capitalize
+        poststedRaw = poststedRaw.replace(/\s*-\s*/, " ").replace(/\s+/g, " ");
+        let [numberPart, ...cityParts] = poststedRaw.split(" ");
+        let cityRaw = cityParts.join(" ").trim();
+        let formattedCity = cityRaw ? capitalizeWords(cityRaw) : "";
+        let formattedPoststed = formattedCity ? `${numberPart} ${formattedCity}` : numberPart;
+
+        return `${formattedId} ${formattedName} - ${formattedPoststed} - ${ownerShare}`;
+    });
+
+    const finalLine = results.join("; ");
+    console.log("📋 Extracted Soliditet Owner:", finalLine);
+    return finalLine;
+}
+
+function processSoliditetBoard(title) {
+    console.log("🟦 Processing Soliditet Board");
+
+    // Helpers
+    function capitalizeCompound(token) {
+        return token
+            .toLocaleLowerCase("nb-NO")
+            .replace(/(^|[-'\u2019])([^\s-'\u2019])/g, (m, sep, ch) =>
+                sep + ch.toLocaleUpperCase("nb-NO")
+            );
+    }
+
+    // Find section
+    const section = Array.from(document.querySelectorAll(".section"))
+        .find(s => s.querySelector("h1")?.innerText.trim() === "Styreinformasjon");
+    if (!section) {
+        console.warn("⚠ 'Styreinformasjon' section not found!");
+        return title;
+    }
+
+    const rows = Array.from(section.querySelectorAll("table tbody tr"))
+        .filter(r => {
+            const cells = r.querySelectorAll("td");
+            if (cells.length < 5) return false;
+            const rawDate = cells[0].innerText.trim();
+            return /^\d{2}-\d{2}-\d{4}$/.test(rawDate); // ✅ only rows starting with a birthdate
+        });
+
+    if (rows.length === 0) {
+        console.warn("⚠ No valid board rows found!");
+        return title;
+    }
+
+    const results = rows.map(row => {
+        const cells = row.querySelectorAll("td");
+
+        // Født
+        let rawDate = cells[0].innerText.trim();
+        let formattedDate = rawDate.replace(/(\d{2})-(\d{2})-(\d{4})/, "$3-$2-$1");
+
+        // Navn
+        let rawName = cells[1].innerText.trim().replace(/\s+/g, " ");
+        let nameParts = rawName.split(/\s+/).map(capitalizeCompound);
+        let formattedName = [...nameParts.slice(1), nameParts[0]].join(" ");
+
+        // Verv
+        let verv = cells[4].innerText.trim().replace(/\s+/g, " ");
+
+        return `${formattedDate} ${formattedName} - ${verv}`;
+    });
+
+    const finalLine = results.join("; ");
+    console.log("📋 Extracted Soliditet Board:", finalLine);
+    return finalLine;
 }
 
 // Processes title for Spotify pages
@@ -550,17 +690,22 @@ browserAPI.runtime.onMessage.addListener((message) => {
     let copyText = formattedTitle; // Default action
 
     if (message.action === "copyTitleWithUrl") {
-        copyText += `\n${url}`; // Title + URL
+        copyText += `\n${url}`;
     } else if (message.action === "copyMarkdown") {
-        copyText = `[${formattedTitle}](${url})`; // Markdown format
+        copyText = `[${formattedTitle}](${url})`;
     } else if (message.action === "copyRawTitle") {
-        copyText = title; // Unmodified raw page title
+        copyText = title;
     } else if (message.action === "copyUrl") {
-        copyText = url; // Only the URL
+        copyText = url;
+    } else if (message.action === "copySoliditetOwner") {
+        copyText = processSoliditetOwner(title);
+    } else if (message.action === "copySoliditetBoard") {
+        copyText = processSoliditetBoard(title);
     }
 
     copyToClipboard(copyText);
 });
+
 
 // Function to copy text to clipboard
 function copyToClipboard(text) {
