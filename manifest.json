@@ -1,9 +1,12 @@
 {
   "manifest_version": 2,
   "name": "Copy Page Title",
-  "version": "1.96",
+  "version": "2.0",
   "description": "One-click copy of the page title.",
   "permissions": ["activeTab", "tabs", "clipboardWrite"],
+  "icons": {
+    "128": "iconx128.png"
+  }, 
   "browser_action": {
     "default_icon": {
       "16": "iconx128.png",

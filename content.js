@@ -5,9 +5,11 @@ const siteHandlers = {
     "amazon.": processAmazonTitle,
     "mail.google.com": processGmailTitle,
     "instagram.com": processInstagramTitle,
+    "iptorrents.com": processTorrentsTitle,
     "mobygames.com": processMobygamesTitle,
     "theporndb.net": processAdultdbTitle,
     "proff.no": processProffTitle,
+    "pornhub.com": processPHTitle,
     "soliditet.no": processSoliditetTitle,
     "open.spotify.com": processSpotifyTitle,
     "twitch.tv": processTwitchTitle,
@@ -82,6 +84,148 @@ function processInstagramTitle(title) {
 
     console.warn("⚠ Instagram username not found!");
     return "Instagram"; // Fallback if username cannot be found
+}
+
+// Processes title for Torrent sites
+function processTorrentsTitle(rawTitle) {
+
+  if (!looksLikeVideo(rawTitle))
+    return processGenericTitle(rawTitle);
+
+  let title = rawTitle;
+
+  // ===============================
+  // 1. Normalize
+  // ===============================
+  title = title
+    .replace(/\./g, " ")
+    .replace(/_/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  // Remove IPTorrents junk
+  title = title.replace(/\s*-\s*Iptorrents.*$/i, "").trim();
+
+  // Remove leading [group]
+  title = title.replace(/^\[[^\]]+\]\s*/, "");
+
+  // ===============================
+  // 2. Hard cut at XXX
+  // ===============================
+  if (/\bXXX\b/i.test(title)) {
+    title = title.split(/\bXXX\b/i)[0].trim();
+  }
+
+  // ===============================
+  // 3. Fully bracketed anime
+  // ===============================
+  if (/^(\[[^\]]+\]){2,}/.test(rawTitle)) {
+
+    let brackets = [...rawTitle.matchAll(/\[([^\]]+)\]/g)]
+      .map(x => x[1]);
+
+    let show = brackets.find(b =>
+      b.length > 5 &&
+      !looksLikeVideo(b) &&
+      !/raw|dual|sub|aac|hevc|x26|bit|audio/i.test(b)
+    );
+
+    let ep = brackets.find(b => /^\d+$/.test(b));
+
+    if (show && ep)
+      return fixTitleCase(`${properTitleCase(show)} E${ep.padStart(2,"0")}`);
+  }
+
+  // Remove release group like -Mami
+  title = title.replace(/-[A-Za-z0-9]+$/, "").trim();
+
+  // ===============================
+  // NEW: Cut title at first video identifier
+  // ===============================
+  title = cutAtFirstVideoTag(title);
+
+  // Remove trailing brackets like [V2][English]
+  title = title.replace(/(\s*\[[^\]]+\])+$/, "").trim();
+
+  // ===============================
+  // 4. TV Episode
+  // ===============================
+  let tvEp = title.match(/(.+?)\s*(S\d{2}[EDP]?\d{2,3})\s*(.*)/i);
+  if (tvEp) {
+    let show = properTitleCase(tvEp[1].trim());
+    let ep = tvEp[2].toUpperCase().replace(/[DP]/, "E");
+    let name = properTitleCase(tvEp[3].trim());
+    return fixTitleCase(`${show} ${ep}${name ? " " + name : ""}`);
+  }
+
+  // ===============================
+  // 5. Anime numeric episode
+  // ===============================
+  let animeEp = title.match(/(.+?)\s*-\s*(\d{2,4})$/);
+  if (animeEp) {
+    return fixTitleCase(`${properTitleCase(animeEp[1].trim())} E${animeEp[2]}`);
+  }
+
+  // ===============================
+  // 6. TV Season
+  // ===============================
+  let tvSeason =
+      title.match(/(.+?)\s*S(\d{2})\b/i) ||
+      title.match(/(.+?)\s*Season\s*(\d+)/i);
+
+  if (tvSeason && !/[EDP]\d{2}/i.test(title)) {
+    let show = properTitleCase(tvSeason[1].trim());
+    let season = parseInt(tvSeason[2]);
+    return fixTitleCase(`${show} Season ${season}`);
+  }
+
+  // ===============================
+  // 7. Porn
+  // ===============================
+  let porn = title.match(/^([A-Za-z0-9]+)\s+(\d{2,4})[- ](\d{2})[- ](\d{2})\s+(.*)/);
+
+  if (porn) {
+    let studio = properTitleCase(splitStudio(porn[1]));
+    let year = porn[2].length === 2 ? "20" + porn[2] : porn[2];
+    let month = porn[3];
+    let day = porn[4];
+    let rest = properTitleCase(porn[5].trim());
+    return `${studio} ${year}-${month}-${day} ${rest}`;
+  }
+
+  // ===============================
+  // 8. Movie
+  // ===============================
+  let movie = title.match(/(.+?)\s*\(?((19|20)\d{2})\)?/);
+  if (movie) {
+    let name = properTitleCase(movie[1].trim());
+    return `${name} (${movie[2]})`;
+  }
+
+  return processGenericTitle(rawTitle);
+
+
+  // ===================================================
+  function cutAtFirstVideoTag(t) {
+    let words = t.split(" ");
+
+    for (let i = 0; i < words.length; i++) {
+      if (videoIdentifiers.some(v =>
+        new RegExp(`^${v}$`, "i").test(words[i])
+      )) {
+        return words.slice(0, i).join(" ").trim();
+      }
+    }
+    return t.trim();
+  }
+
+  function splitStudio(name) {
+    return name.replace(/([a-z])([A-Z])/g, "$1 $2");
+  }
+
+  function fixTitleCase(text) {
+    return text.replace(/\bthe Anime\b/i, "The Anime");
+  }
 }
 
 // Processes title for MobyGames
@@ -169,6 +313,38 @@ function processProffTitle(title) {
     return formattedTitle;
   }
   return title;
+}
+
+// Processes title for Pornhub.com
+function processPHTitle(title) {
+    console.log("🎭 Processing title for PornHub");
+    
+    // Remove " - Pornhub.com" from the end
+    let cleanedTitle = title.replace(/\s*-\s*Pornhub\.com$/i, "").trim();
+    
+	// Checks if ALL LETTERS are uppercase (ignoring numbers, symbols, whitespace)
+	const isAllCaps = (str) => !/[a-z]/.test(str);
+
+	// Apply properTitleCase only if letters are ALL CAPS
+	if (isAllCaps(cleanedTitle)) {
+		cleanedTitle = properTitleCase(cleanedTitle);
+	}
+    
+    // Check for episode pattern
+    const episodeMatch = cleanedTitle.match(/(.*?)\s*-\s*(.*?)\s*\((EPISODE\s*(\d+))\)/i);
+    
+    if (episodeMatch) {
+        const titlePart = episodeMatch[1].trim();
+        const seriesPart = episodeMatch[2].trim();
+        const episodeNum = episodeMatch[4].trim();
+        
+        // Format as: {Series} S01E{Episode} - {Title}
+        // Example: Luna's Journey - S01E54 - Sun and Wine
+        return `${seriesPart} - S01E${episodeNum} - ${titlePart}`;
+    }
+    
+    // If no episode found, return the cleaned title
+    return cleanedTitle;
 }
 
 // Processes title for Reddit
@@ -282,148 +458,8 @@ function processSoliditetTitle(title) {
 		return formattedName + (orgNumber ? " " + orgNumber : "");
 	}
 
+
     return findCompanyName();
-}
-
-function processSoliditetOwner(title) {
-    console.log("🟦 Processing Soliditet Owner");
-
-    // Helpers
-    function capitalizeCompound(token) {
-        return token
-            .toLocaleLowerCase("nb-NO")
-            .replace(/(^|[-'\u2019])([^\s-'\u2019])/g, (m, sep, ch) =>
-                sep + ch.toLocaleUpperCase("nb-NO")
-            );
-    }
-    function capitalizeWords(str) {
-        return str
-            .toLocaleLowerCase("nb-NO")
-            .replace(/(^|[-'\u2019\s])([^\s-'\u2019])/g, (m, sep, ch) =>
-                sep + ch.toLocaleUpperCase("nb-NO")
-            );
-    }
-    function formatCompanyName(companyName) {
-        let formattedName = properTitleCase(companyName);
-        formattedName = fixAddressSuffixes(formattedName);
-        formattedName = fixDomainCase(formattedName);
-        formattedName = fixCompanySuffixes(formattedName);
-        return formattedName;
-    }
-
-    // Find section
-    const section = Array.from(document.querySelectorAll(".section"))
-        .find(s => s.querySelector("h1")?.innerText.trim() === "Aksjonærer");
-    if (!section) {
-        console.warn("⚠ 'Aksjonærer' section not found!");
-        return title;
-    }
-
-    const rows = Array.from(section.querySelectorAll("table tbody tr"))
-        .filter(r => r.querySelectorAll("td").length >= 4);
-
-    if (rows.length === 0) {
-        console.warn("⚠ No valid owner rows found!");
-        return title;
-    }
-
-    const results = rows.map(row => {
-        const cells = row.querySelectorAll("td");
-
-        // Raw fields
-        let rawId = cells[0].innerText.trim().replace(/\s+/g, " "); // could be date OR orgnr
-        let rawName = cells[1].innerText.trim().replace(/\s+/g, " ");
-        let poststedRaw = cells[2].innerText.trim();
-        let ownerShare = cells[3].innerText.trim().replace(/\s+/g, "");
-
-        // Detect if rawId is a valid date (DD-MM-YYYY)
-        let isPerson = /^\d{2}-\d{2}-\d{4}$/.test(rawId);
-
-        let formattedId = "";
-        let formattedName = "";
-
-        if (isPerson) {
-            // Format date -> YYYY-MM-DD
-            formattedId = rawId.replace(/(\d{2})-(\d{2})-(\d{4})/, "$3-$2-$1");
-
-            // Format name -> move first word (last name) to end
-            let nameParts = rawName.split(/\s+/).map(capitalizeCompound);
-            formattedName = [...nameParts.slice(1), nameParts[0]].join(" ");
-        } else {
-            // Company → keep orgnr and run name through pipeline
-            formattedId = rawId;
-            formattedName = formatCompanyName(rawName);
-        }
-
-        // Poststed: normalize spaces, cut dash, capitalize
-        poststedRaw = poststedRaw.replace(/\s*-\s*/, " ").replace(/\s+/g, " ");
-        let [numberPart, ...cityParts] = poststedRaw.split(" ");
-        let cityRaw = cityParts.join(" ").trim();
-        let formattedCity = cityRaw ? capitalizeWords(cityRaw) : "";
-        let formattedPoststed = formattedCity ? `${numberPart} ${formattedCity}` : numberPart;
-
-        return `${formattedId} ${formattedName} - ${formattedPoststed} - ${ownerShare}`;
-    });
-
-    const finalLine = results.join("; ");
-    console.log("📋 Extracted Soliditet Owner:", finalLine);
-    return finalLine;
-}
-
-function processSoliditetBoard(title) {
-    console.log("🟦 Processing Soliditet Board");
-
-    // Helpers
-    function capitalizeCompound(token) {
-        return token
-            .toLocaleLowerCase("nb-NO")
-            .replace(/(^|[-'\u2019])([^\s-'\u2019])/g, (m, sep, ch) =>
-                sep + ch.toLocaleUpperCase("nb-NO")
-            );
-    }
-
-    // Find section
-    const section = Array.from(document.querySelectorAll(".section"))
-        .find(s => s.querySelector("h1")?.innerText.trim() === "Styreinformasjon");
-    if (!section) {
-        console.warn("⚠ 'Styreinformasjon' section not found!");
-        return title;
-    }
-
-    const rows = Array.from(section.querySelectorAll("table tbody tr"))
-        .filter(r => {
-            const cells = r.querySelectorAll("td");
-            if (cells.length < 5) return false;
-            const rawDate = cells[0].innerText.trim();
-            return /^\d{2}-\d{2}-\d{4}$/.test(rawDate); // ✅ only rows starting with a birthdate
-        });
-
-    if (rows.length === 0) {
-        console.warn("⚠ No valid board rows found!");
-        return title;
-    }
-
-    const results = rows.map(row => {
-        const cells = row.querySelectorAll("td");
-
-        // Født
-        let rawDate = cells[0].innerText.trim();
-        let formattedDate = rawDate.replace(/(\d{2})-(\d{2})-(\d{4})/, "$3-$2-$1");
-
-        // Navn
-        let rawName = cells[1].innerText.trim().replace(/\s+/g, " ");
-        let nameParts = rawName.split(/\s+/).map(capitalizeCompound);
-        let formattedName = [...nameParts.slice(1), nameParts[0]].join(" ");
-
-        // Verv
-        let verv = cells[4].innerText.trim().replace(/\s+/g, " ");
-
-        return `${formattedDate} ${formattedName} - ${verv}`;
-    });
-
-    const finalLine = results.join("; ");
-    console.log("📋 Extracted Soliditet Board:", finalLine);
-    return finalLine;
 }
 
 // Processes title for Spotify pages
@@ -551,6 +587,26 @@ function fetchCompanyName(orgNumber, callback) {
         console.error("❌ Not found.");
         callback(null);
     }, 1000);
+}
+
+// Video file identifiers
+const videoIdentifiers = [
+  // Resolution / Quality
+  "2160p","1440p","1080p","1080i","720p","576p","480p","360p",
+  "4K","8K","HDR","SDR","DV","DoVi","DolbyVision",
+  "BluRay","BRRip","BDRip","BDREMUX","REMUX", "AMZN",
+  "WEB-DL","WEBRip","HDTV","DVDRip","CAM","TS","TC","SCR","R5",
+
+  // Codecs / Formats
+  "x264","x265","H 264","H 265","HEVC","AVC","XviD","DivX","AV1",
+  "MP4","MKV","AVI","AAC","AC3","DTS","TrueHD","Atmos","FLAC","DDP",
+	"5 1", "7 1",
+];
+
+function looksLikeVideo(title) {
+  return videoIdentifiers.some(id =>
+    new RegExp(`\\b${id}\\b`, "i").test(title)
+  );
 }
 
 // Utility function to fix company suffixes without altering the main company name
@@ -690,22 +746,17 @@ browserAPI.runtime.onMessage.addListener((message) => {
     let copyText = formattedTitle; // Default action
 
     if (message.action === "copyTitleWithUrl") {
-        copyText += `\n${url}`;
+        copyText += `\n${url}`; // Title + URL
     } else if (message.action === "copyMarkdown") {
-        copyText = `[${formattedTitle}](${url})`;
+        copyText = `[${formattedTitle}](${url})`; // Markdown format
     } else if (message.action === "copyRawTitle") {
-        copyText = title;
+        copyText = title; // Unmodified raw page title
     } else if (message.action === "copyUrl") {
-        copyText = url;
-    } else if (message.action === "copySoliditetOwner") {
-        copyText = processSoliditetOwner(title);
-    } else if (message.action === "copySoliditetBoard") {
-        copyText = processSoliditetBoard(title);
+        copyText = url; // Only the URL
     }
 
     copyToClipboard(copyText);
 });
-
 
 // Function to copy text to clipboard
 function copyToClipboard(text) {
