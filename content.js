@@ -462,6 +462,91 @@ function processSoliditetTitle(title) {
     return findCompanyName();
 }
 
+// ===============================
+// SOLIDITET: OWNER
+// ===============================
+function processSoliditetOwner(title) {
+    console.log("🟦 Processing Soliditet Owner");
+
+    function cap(str) {
+        return str.toLocaleLowerCase("nb-NO")
+            .replace(/(^|[\s-])\S/g, l => l.toLocaleUpperCase("nb-NO"));
+    }
+
+    const section = [...document.querySelectorAll(".section")]
+        .find(s => s.querySelector("h1")?.innerText.includes("Aksjon"));
+
+    if (!section) {
+        console.warn("⚠ Aksjonærer not found");
+        return title;
+    }
+
+    const rows = [...section.querySelectorAll("table tbody tr")];
+
+    return rows.map(row => {
+        const tds = row.querySelectorAll("td");
+        if (tds.length < 4) return null;
+
+        let id = tds[0].innerText.trim();
+        let name = tds[1].innerText.trim();
+        let place = tds[2].innerText.trim();
+        let share = tds[3].innerText.trim();
+
+        // Person (date)
+        if (/^\d{2}-\d{2}-\d{4}$/.test(id)) {
+            id = id.replace(/(\d{2})-(\d{2})-(\d{4})/, "$3-$2-$1");
+
+            let parts = name.split(/\s+/);
+            name = [...parts.slice(1), parts[0]].map(cap).join(" ");
+        } else {
+            name = cap(name);
+        }
+
+        place = cap(place.replace(/\s*-\s*/, " "));
+        share = share.replace(/\s+/g, "");
+
+        return `${id} ${name} - ${place} - ${share}`;
+    }).filter(Boolean).join("; ");
+}
+
+// ===============================
+// SOLIDITET: BOARD
+// ===============================
+function processSoliditetBoard(title) {
+    console.log("🟦 Processing Soliditet Board");
+
+    function cap(str) {
+        return str.toLocaleLowerCase("nb-NO")
+            .replace(/(^|[\s-])\S/g, l => l.toLocaleUpperCase("nb-NO"));
+    }
+
+    const section = [...document.querySelectorAll(".section")]
+        .find(s => s.querySelector("h1")?.innerText.includes("Styreinformasjon"));
+
+    if (!section) {
+        console.warn("⚠ Styreinformasjon not found");
+        return title;
+    }
+
+    const rows = [...section.querySelectorAll("table tbody tr")];
+
+    return rows.map(row => {
+        const tds = row.querySelectorAll("td");
+        if (tds.length < 5) return null;
+
+        let date = tds[0].innerText.trim();
+        if (!/^\d{2}-\d{2}-\d{4}$/.test(date)) return null;
+
+        date = date.replace(/(\d{2})-(\d{2})-(\d{4})/, "$3-$2-$1");
+
+        let nameParts = tds[1].innerText.trim().split(/\s+/);
+        let name = [...nameParts.slice(1), nameParts[0]].map(cap).join(" ");
+
+        let role = tds[4].innerText.trim();
+
+        return `${date} ${name} - ${role}`;
+    }).filter(Boolean).join("; ");
+}
 // Processes title for Spotify pages
 function processSpotifyTitle(title) {
     console.log("🎵 Processing title for Spotify");
@@ -745,15 +830,19 @@ browserAPI.runtime.onMessage.addListener((message) => {
 
     let copyText = formattedTitle; // Default action
 
-    if (message.action === "copyTitleWithUrl") {
-        copyText += `\n${url}`; // Title + URL
-    } else if (message.action === "copyMarkdown") {
-        copyText = `[${formattedTitle}](${url})`; // Markdown format
-    } else if (message.action === "copyRawTitle") {
-        copyText = title; // Unmodified raw page title
-    } else if (message.action === "copyUrl") {
-        copyText = url; // Only the URL
-    }
+		if (message.action === "copyTitleWithUrl") {
+				copyText += `\n${url}`;
+		} else if (message.action === "copyMarkdown") {
+				copyText = `[${formattedTitle}](${url})`;
+		} else if (message.action === "copyRawTitle") {
+				copyText = title;
+		} else if (message.action === "copyUrl") {
+				copyText = url;
+		} else if (message.action === "copySoliditetOwner") {
+				copyText = processSoliditetOwner(title);
+		} else if (message.action === "copySoliditetBoard") {
+				copyText = processSoliditetBoard(title);
+		}
 
     copyToClipboard(copyText);
 });
