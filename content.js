@@ -463,13 +463,13 @@ function processSoliditetTitle(title) {
 }
 
 // ===============================
-// SOLIDITET: FULL (simple)
+// SOLIDITET: FULL
 // ===============================
 function processSoliditetFull(title) {
     console.log("🟦 Processing Soliditet FULL");
 
     // ===============================
-    // COMPANY (same as before)
+    // COMPANY
     // ===============================
     let companyElement = Array.from(document.querySelectorAll("h2"))
         .find(el => /\b\d{9}\b/.test(el.innerText));
