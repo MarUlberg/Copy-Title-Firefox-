@@ -463,90 +463,271 @@ function processSoliditetTitle(title) {
 }
 
 // ===============================
-// SOLIDITET: OWNER
+// SOLIDITET: FULL (simple)
 // ===============================
-function processSoliditetOwner(title) {
-    console.log("🟦 Processing Soliditet Owner");
+function processSoliditetFull(title) {
+    console.log("🟦 Processing Soliditet FULL");
 
-    function cap(str) {
-        return str.toLocaleLowerCase("nb-NO")
-            .replace(/(^|[\s-])\S/g, l => l.toLocaleUpperCase("nb-NO"));
-    }
+    // ===============================
+    // COMPANY (same as before)
+    // ===============================
+    let companyElement = Array.from(document.querySelectorAll("h2"))
+        .find(el => /\b\d{9}\b/.test(el.innerText));
 
-    const section = [...document.querySelectorAll(".section")]
-        .find(s => s.querySelector("h1")?.innerText.includes("Aksjon"));
-
-    if (!section) {
-        console.warn("⚠ Aksjonærer not found");
+    if (!companyElement) {
+        console.warn("⚠ Company not found");
         return title;
     }
 
-    const rows = [...section.querySelectorAll("table tbody tr")];
+    let raw = companyElement.innerText.trim();
 
-    return rows.map(row => {
-        const tds = row.querySelectorAll("td");
-        if (tds.length < 4) return null;
+    let orgMatch = raw.match(/\b\d{9}\b/);
+    let org = orgMatch ? orgMatch[0] : "";
 
-        let id = tds[0].innerText.trim();
-        let name = tds[1].innerText.trim();
-        let place = tds[2].innerText.trim();
-        let share = tds[3].innerText.trim();
+    let name = raw.replace(/\b\d{9}\b/, "").trim();
 
-        // Person (date)
-        if (/^\d{2}-\d{2}-\d{4}$/.test(id)) {
-            id = id.replace(/(\d{2})-(\d{2})-(\d{4})/, "$3-$2-$1");
+    name = properTitleCase(name);
+    name = fixAddressSuffixes(name);
+    name = fixDomainCase(name);
+    name = fixCompanySuffixes(name);
 
-            let parts = name.split(/\s+/);
-            name = [...parts.slice(1), parts[0]].map(cap).join(" ");
+		// ===============================
+		// OMSETNING (Regnskapsår + Sum inntekter)
+		// ===============================
+		let omsetning = "";
+
+		let regnskapHeader = Array.from(document.querySelectorAll("h4"))
+				.find(h => h.innerText.includes("Regnskapsår"));
+
+		if (regnskapHeader) {
+				// Extract year (e.g. 2024)
+				let yearMatch = regnskapHeader.innerText.match(/\b(20\d{2})\b/);
+				let year = yearMatch ? yearMatch[1] : "";
+
+				// Find nearest DL after this header
+				let dl = regnskapHeader.nextElementSibling;
+
+				if (dl && dl.classList.contains("key-value-rows")) {
+						let dts = dl.querySelectorAll("dt");
+
+						let inntekterDT = Array.from(dts)
+								.find(dt => dt.innerText.includes("Sum"));
+
+						if (inntekterDT && inntekterDT.nextElementSibling) {
+								let rawValue = inntekterDT.nextElementSibling.innerText;
+
+								// Remove spaces & nbsp → 6592555
+								let value = rawValue.replace(/\s|\u00A0/g, "");
+
+								if (year && value) {
+										omsetning = `Omsetning ${year} - ${value};`;
+								}
+						}
+				}
+		}
+
+		// ===============================
+		// RATING
+		// ===============================
+		let rating = "";
+
+		let ratingEl = document.querySelector("#ratingcode");
+
+		if (ratingEl) {
+				rating = ratingEl.innerText.trim();
+		}
+
+		// ===============================
+		// ANTALL ANSATTE 
+		// ===============================
+		let ansatte = "";
+
+		let ansatteCell = Array.from(document.querySelectorAll("td"))
+				.find(td => td.innerText.includes("Antall ansatte"));
+
+		if (ansatteCell && ansatteCell.nextElementSibling) {
+				let rawLabel = ansatteCell.innerText.trim();   // "Antall ansatte 2026"
+				let rawValue = ansatteCell.nextElementSibling.innerText.trim(); // "498"
+
+				// Extract year
+				let yearMatch = rawLabel.match(/\b(20\d{2})\b/);
+				let year = yearMatch ? yearMatch[1] : "";
+
+				let value = rawValue.replace(/\s+/g, "");
+
+				if (year) {
+						ansatte = `Antall ansatte ${year} - ${value};`;
+				} else {
+						ansatte = `Antall ansatte - ${value};`;
+				}
+		}
+
+    // ===============================
+    // REGISTRERINGSDATO
+    // ===============================
+    let regdato = "";
+
+    let regCell = Array.from(document.querySelectorAll("td"))
+        .find(td => td.innerText.trim() === "Registreringsdato");
+
+    if (regCell && regCell.nextElementSibling) {
+        let rawDate = regCell.nextElementSibling.innerText.trim();
+
+        // Convert DD-MM-YYYY → YYYY-MM-DD
+        if (/^\d{2}-\d{2}-\d{4}$/.test(rawDate)) {
+            regdato = rawDate.replace(/(\d{2})-(\d{2})-(\d{4})/, "$3-$2-$1");
         } else {
-            name = cap(name);
+            regdato = rawDate;
         }
-
-        place = cap(place.replace(/\s*-\s*/, " "));
-        share = share.replace(/\s+/g, "");
-
-        return `${id} ${name} - ${place} - ${share}`;
-    }).filter(Boolean).join("; ");
-}
-
-// ===============================
-// SOLIDITET: BOARD
-// ===============================
-function processSoliditetBoard(title) {
-    console.log("🟦 Processing Soliditet Board");
-
-    function cap(str) {
-        return str.toLocaleLowerCase("nb-NO")
-            .replace(/(^|[\s-])\S/g, l => l.toLocaleUpperCase("nb-NO"));
     }
 
-    const section = [...document.querySelectorAll(".section")]
-        .find(s => s.querySelector("h1")?.innerText.includes("Styreinformasjon"));
 
-    if (!section) {
-        console.warn("⚠ Styreinformasjon not found");
-        return title;
-    }
+		// ===============================
+		// SOLIDITET: OWNER
+		// ===============================
+		function processSoliditetOwner(title) {
+				console.log("🟦 Processing Soliditet Owner");
 
-    const rows = [...section.querySelectorAll("table tbody tr")];
+				function cap(str) {
+						return str.toLocaleLowerCase("nb-NO")
+								.replace(/(^|[\s-])\S/g, l => l.toLocaleUpperCase("nb-NO"));
+				}
 
-    return rows.map(row => {
-        const tds = row.querySelectorAll("td");
-        if (tds.length < 5) return null;
+				const section = [...document.querySelectorAll(".section")]
+						.find(s => s.querySelector("h1")?.innerText.includes("Aksjon"));
 
-        let date = tds[0].innerText.trim();
-        if (!/^\d{2}-\d{2}-\d{4}$/.test(date)) return null;
+				if (!section) {
+						console.warn("⚠ Aksjonærer not found");
+						return title;
+				}
 
-        date = date.replace(/(\d{2})-(\d{2})-(\d{4})/, "$3-$2-$1");
+				const rows = [...section.querySelectorAll("table tbody tr")];
 
-        let nameParts = tds[1].innerText.trim().split(/\s+/);
-        let name = [...nameParts.slice(1), nameParts[0]].map(cap).join(" ");
+				return rows.map(row => {
+						const tds = row.querySelectorAll("td");
+						if (tds.length < 4) return null;
 
-        let role = tds[4].innerText.trim();
+						let id = tds[0].innerText.trim();
+						let name = tds[1].innerText.trim();
+						let place = tds[2].innerText.trim();
+						let share = tds[3].innerText.trim();
 
-        return `${date} ${name} - ${role}`;
-    }).filter(Boolean).join("; ");
+						// Person (date)
+						if (/^\d{2}-\d{2}-\d{4}$/.test(id)) {
+								id = id.replace(/(\d{2})-(\d{2})-(\d{4})/, "$3-$2-$1");
+
+								let parts = name.split(/\s+/);
+								name = [...parts.slice(1), parts[0]].map(cap).join(" ");
+						} else {
+								name = cap(name);
+						}
+
+						place = cap(place.replace(/\s*-\s*/, " "));
+						share = share.replace(/\s+/g, "");
+
+						return `${id} ${name} - ${place} - ${share}`;
+				}).filter(Boolean).join("; ");
+		}
+
+		// ===============================
+		// SOLIDITET: BOARD
+		// ===============================
+		function processSoliditetBoard(title) {
+				console.log("🟦 Processing Soliditet Board");
+
+				function cap(str) {
+						return str.toLocaleLowerCase("nb-NO")
+								.replace(/(^|[\s-])\S/g, l => l.toLocaleUpperCase("nb-NO"));
+				}
+
+				const section = [...document.querySelectorAll(".section")]
+						.find(s => s.querySelector("h1")?.innerText.includes("Styreinformasjon"));
+
+				if (!section) {
+						console.warn("⚠ Styreinformasjon not found");
+						return title;
+				}
+
+				const rows = [...section.querySelectorAll("table tbody tr")];
+
+				return rows.map(row => {
+						const tds = row.querySelectorAll("td");
+						if (tds.length < 5) return null;
+
+						let date = tds[0].innerText.trim();
+						if (!/^\d{2}-\d{2}-\d{4}$/.test(date)) return null;
+
+						date = date.replace(/(\d{2})-(\d{2})-(\d{4})/, "$3-$2-$1");
+
+						let nameParts = tds[1].innerText.trim().split(/\s+/);
+						let name = [...nameParts.slice(1), nameParts[0]].map(cap).join(" ");
+
+						let place = tds[3].innerText.trim(); // NEW (Poststed / country)
+						let role = tds[4].innerText.trim();
+
+						return `${date} ${name} - ${place} - ${role}`;
+
+						return `${date} ${name} - ${role}`;
+				}).filter(Boolean).join("; ");
+		}
+
+    // ===============================
+    // BUILD OUTPUT
+    // ===============================
+		let parts = [];
+
+		// Base
+		parts.push(`${org}`);
+		parts.push(`${name}`);
+
+		// Omsetning
+		if (omsetning) {
+				// convert from "Omsetning 2024 - 6592555;" → new format
+				let match = omsetning.match(/(\d{4}).*?(\d+)/);
+				if (match) {
+						parts.push(`Omsetning (${match[1]}): ${match[2]}`);
+				}
+		}
+
+		// Rating
+		if (rating) {
+				parts.push(`Rating: ${rating}`);
+		}
+
+		// Ansatte
+		if (ansatte) {
+				// convert from "Antall ansatte 2026 - 498;"
+				let match = ansatte.match(/(\d{4}).*?(\d+)/);
+				if (match) {
+						parts.push(`Antall ansatte (${match[1]}): ${match[2]}`);
+				}
+		}
+
+		// Registreringsdato
+		if (regdato) {
+				parts.push(`Registreringsdato: ${regdato}`);
+		}
+
+		// Aksjonærer
+		let owners = processSoliditetOwner(title);
+		if (owners && owners !== title) {
+				parts.push(`Aksjonærer: ${owners}`);
+		}
+
+		// Styreinformasjon
+		let board = processSoliditetBoard(title);
+		if (board && board !== title) {
+				parts.push(`Styreinformasjon: ${board}`);
+		}
+
+		// Join with semicolon + space
+		let result = parts.join("; ") + ";";
+
+		console.log("📋 Soliditet FULL:", result);
+		return result;
 }
+
+
 // Processes title for Spotify pages
 function processSpotifyTitle(title) {
     console.log("🎵 Processing title for Spotify");
@@ -842,6 +1023,8 @@ browserAPI.runtime.onMessage.addListener((message) => {
 				copyText = processSoliditetOwner(title);
 		} else if (message.action === "copySoliditetBoard") {
 				copyText = processSoliditetBoard(title);
+		}	else if (message.action === "copySoliditetFull") {
+				copyText = processSoliditetFull(title);
 		}
 
     copyToClipboard(copyText);

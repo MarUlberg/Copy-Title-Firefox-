@@ -7,20 +7,19 @@ browserAPI.browserAction.onClicked.addListener((tab, clickData) => {
 
     if (clickData.modifiers.includes("Shift") && clickData.modifiers.includes("Alt")) {
         action = "copyMarkdown"; // Shift + Alt → Copy as Markdown
+
     } else if (clickData.modifiers.includes("Shift") && clickData.modifiers.includes("Ctrl")) {
-        action = "copyRawTitle"; // Ctrl + Shift → Copy raw page title
+        action = "copyRawTitle"; // Ctrl + Shift → ALWAYS raw title
+
     } else if (clickData.modifiers.includes("Shift")) {
         if (tab.url.includes("https://soliditet.no/")) {
-            action = "copySoliditetOwner"; // Shift → Soliditet owner
+            action = "copySoliditetFull"; // Shift → Full Company Info
         } else {
-            action = "copyTitleWithUrl"; // Shift → Copy Title + URL
+            action = "copyTitleWithUrl"; // Default Shift → Copy Title + URL
         }
+
     } else if (clickData.modifiers.includes("Ctrl")) {
-        if (tab.url.includes("https://soliditet.no/")) {
-            action = "copySoliditetBoard"; // Ctrl → Soliditet board
-        } else {
-            action = "copyUrl"; // Ctrl → Copy only URL
-        }
+        action = "copyUrl"; // Ctrl → ALWAYS URL
     }
 
     browserAPI.tabs.sendMessage(tab.id, { action: action });
