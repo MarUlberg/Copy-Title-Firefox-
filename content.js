@@ -492,20 +492,36 @@ function processSoliditetFull(title) {
     name = fixCompanySuffixes(name);
 
 		// ===============================
+		// BESØKSADRESSE
+		// ===============================
+		let adresse = "";
+
+		let adresseCell = Array.from(document.querySelectorAll("td"))
+				.find(td => td.innerText.trim().startsWith("Besøksadresse"));
+
+		if (adresseCell && adresseCell.nextElementSibling) {
+				let raw = adresseCell.nextElementSibling.innerText;
+
+				// Clean nbsp + extra spaces
+				adresse = raw.replace(/\u00A0/g, " ").replace(/\s+/g, " ").trim();
+		}
+
+		// ===============================
 		// OMSETNING (Regnskapsår + Sum inntekter)
 		// ===============================
 		let omsetning = "";
+		let dl = null;
+		let year = "";
 
 		let regnskapHeader = Array.from(document.querySelectorAll("h4"))
 				.find(h => h.innerText.includes("Regnskapsår"));
 
 		if (regnskapHeader) {
-				// Extract year (e.g. 2024)
 				let yearMatch = regnskapHeader.innerText.match(/\b(20\d{2})\b/);
-				let year = yearMatch ? yearMatch[1] : "";
+				year = yearMatch ? yearMatch[1] : "";
 
 				// Find nearest DL after this header
-				let dl = regnskapHeader.nextElementSibling;
+				dl = regnskapHeader.nextElementSibling;
 
 				if (dl && dl.classList.contains("key-value-rows")) {
 						let dts = dl.querySelectorAll("dt");
@@ -522,6 +538,46 @@ function processSoliditetFull(title) {
 								if (year && value) {
 										omsetning = `Omsetning ${year} - ${value};`;
 								}
+						}
+				}
+		}
+
+		// ===============================
+		// ÅRSRESULTAT
+		// ===============================
+		let arsresultat = "";
+
+		if (dl) {
+				let arsresultatDT = Array.from(dl.querySelectorAll("dt"))
+						.find(dt => dt.innerText.includes("Årsresultat"));
+
+				if (arsresultatDT && arsresultatDT.nextElementSibling) {
+						let arsresultatLink = arsresultatDT.nextElementSibling.querySelector("a");
+
+						if (arsresultatLink) {
+								arsresultat = arsresultatLink.innerText
+										.replace(/\s|\u00A0/g, "")
+										.trim();
+						}
+				}
+		}
+
+		// ===============================
+		// EGENKAPITAL
+		// ===============================
+		let egenkapital = "";
+
+		if (dl) {
+				let egenkapitalDT = Array.from(dl.querySelectorAll("dt"))
+						.find(dt => dt.innerText.includes("Sum egenkapital"));
+
+				if (egenkapitalDT && egenkapitalDT.nextElementSibling) {
+						let egenkapitalLink = egenkapitalDT.nextElementSibling.querySelector("a");
+
+						if (egenkapitalLink) {
+								egenkapital = egenkapitalLink.innerText
+										.replace(/\s|\u00A0/g, "")
+										.trim();
 						}
 				}
 		}
@@ -581,6 +637,28 @@ function processSoliditetFull(title) {
         }
     }
 
+		// ===============================
+		// FACTORINGAVTALE
+		// ===============================
+		let factoringavtale = "None";
+
+		let betalingserfaring = document.querySelector("#betalingserfaring");
+
+		if (betalingserfaring) {
+				let factoringTD = Array.from(betalingserfaring.querySelectorAll("td"))
+						.find(td => td.innerText.trim().toUpperCase() === "FACTORINGAVT.");
+
+				if (factoringTD) {
+						let row = factoringTD.closest("tr");
+						let tds = row ? row.querySelectorAll("td") : [];
+
+						if (tds.length > 6) {
+								factoringavtale = tds[6].innerText
+										.replace(/\s+/g, " ")
+										.trim();
+						}
+				}
+		}
 
 		// ===============================
 		// SOLIDITET: OWNER
@@ -620,6 +698,7 @@ function processSoliditetFull(title) {
 								name = [...parts.slice(1), parts[0]].map(cap).join(" ");
 						} else {
 								name = cap(name);
+								name = fixCompanySuffixes(name); // ✅ NEW
 						}
 
 						place = cap(place.replace(/\s*-\s*/, " "));
@@ -679,7 +758,12 @@ function processSoliditetFull(title) {
 		// Base
 		parts.push(`${org}`);
 		parts.push(`${name}`);
-
+		
+		// Besøksadresse
+		if (adresse) {
+				parts.push(`Besøksadresse: ${adresse}`);
+		}
+		
 		// Omsetning
 		if (omsetning) {
 				// convert from "Omsetning 2024 - 6592555;" → new format
@@ -689,6 +773,16 @@ function processSoliditetFull(title) {
 				}
 		}
 
+		// Årsresultat
+		if (arsresultat) {
+				parts.push(`Årsresultat (${year}): ${arsresultat}`);
+		}
+
+		// Egenkapital
+		if (egenkapital) {
+				parts.push(`Egenkapital (${year}): ${egenkapital}`);
+		}
+				
 		// Rating
 		if (rating) {
 				parts.push(`Rating: ${rating}`);
@@ -707,6 +801,9 @@ function processSoliditetFull(title) {
 		if (regdato) {
 				parts.push(`Registreringsdato: ${regdato}`);
 		}
+
+		// Factoringavtale
+		parts.push(`Factoringavtale: ${factoringavtale}`);
 
 		// Aksjonærer
 		let owners = processSoliditetOwner(title);

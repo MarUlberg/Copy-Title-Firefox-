@@ -1,5 +1,10 @@
 const browserAPI = typeof browser !== "undefined" ? browser : chrome;
 
+
+// ============================================================
+// EXTENSION ICON
+// ============================================================
+
 browserAPI.browserAction.onClicked.addListener((tab, clickData) => {
     console.log("🟢 Extension clicked!", clickData);
 
@@ -23,4 +28,23 @@ browserAPI.browserAction.onClicked.addListener((tab, clickData) => {
     }
 
     browserAPI.tabs.sendMessage(tab.id, { action: action });
+});
+
+
+// ============================================================
+// OPTIONS
+// ============================================================
+
+browserAPI.contextMenus.create({
+    id: "openCompanyNameOptions",
+    title: "Load Company Name Dictionary",
+    contexts: ["browser_action"]
+});
+
+browserAPI.contextMenus.onClicked.addListener((info) => {
+    if (info.menuItemId === "openCompanyNameOptions") {
+        browserAPI.tabs.create({
+            url: browserAPI.runtime.getURL("file-picker.html")
+        });
+    }
 });
