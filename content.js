@@ -1,3 +1,21 @@
+/**
+ * Copy Page Title
+ *
+ * Content script for the Copy Page Title browser extension.
+ *
+ * The extension provides convenient ways to copy information from the
+ * current web page to the clipboard. It supports copying page titles,
+ * URLs, title-and-URL combinations, formatted Markdown links, and other
+ * processed page information where appropriate. The content script
+ * performs the page-level processing required to collect, format, and
+ * return the requested information to the extension's background script.
+ *
+ * This content.js file is identical between the Firefox and Chrome
+ * versions of the Copy Page Title extension. Keeping the content script
+ * shared between both browser implementations ensures that page-level
+ * copy behavior remains consistent across the two extensions.
+ */
+ 
 console.log("🟡 Content script loaded!");
 
 // Determines which function to use based on the website
