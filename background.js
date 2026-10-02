@@ -86,7 +86,7 @@ function updateContextMenuForTab(tab) {
 
     if (isPornDbUrl(tab?.url)) {
         titleText = "Copy Plex Filename  (Click Extension Icon)";
-        titleUrlText = "Copy Plex+Perform  (Shift+Ctrl+F)";
+        titleUrlText = "Copy Plex + Performer  (Shift+Ctrl+F)";
     } else {
         titleText = "Copy Title          (Click Extension Icon)";
 
