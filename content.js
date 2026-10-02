@@ -246,57 +246,96 @@ function processMobygamesTitle(title) {
 }
 
 // Processes title for theporndb.net
-function processAdultdbTitle(title) {
-  console.log("🔴 Processing title for ThePornDB");
+function processAdultdbTitle(title, includePerformers = false) {
+    console.log("🔴 Processing title for ThePornDB");
 
-  function formatDate(month, day, year) {
-    const months = {
-      Jan: "01", Feb: "02", Mar: "03", Apr: "04", May: "05", Jun: "06",
-      Jul: "07", Aug: "08", Sep: "09", Oct: "10", Nov: "11", Dec: "12"
-    };
-    return `${year}-${months[month]}-${day.padStart(2, '0')}`;
-  }
+    function formatDate(month, day, year) {
+        const months = {
+            Jan: "01", Feb: "02", Mar: "03", Apr: "04",
+            May: "05", Jun: "06", Jul: "07", Aug: "08",
+            Sep: "09", Oct: "10", Nov: "11", Dec: "12"
+        };
 
-  // Remove extra parts of the title
-  title = title.split(/ :: /)[0].trim();
-
-  let dateRegex = /\b([A-Za-z]{3})\s+(\d{1,2}),\s+(\d{4})\b/;
-  let dateMatch = null;
-
-  // Possible sources for the date
-  let sources = [
-    document.body.innerText,
-    document.body.innerHTML,
-    document.querySelector("meta[property='article:published_time']")?.content,
-    document.querySelector("meta[name='date']")?.content,
-    ...Array.from(document.querySelectorAll("h1, h2, h3, p, span")).map(el => el.innerText)
-  ];
-
-  // Try to find a date on the page
-  for (let source of sources) {
-    if (source && typeof source === "string") {
-      let match = source.match(dateRegex);
-      if (match) {
-        dateMatch = match;
-        break;
-      }
+        return `${year}-${months[month]}-${day.padStart(2, "0")}`;
     }
-  }
 
-  if (dateMatch) {
-    let formattedDate = formatDate(dateMatch[1], dateMatch[2], dateMatch[3]);
-    if (title.includes("/")) {
-      title = title.replace(/\s*\/\s*/, ` ${formattedDate} `);
+    // Remove extra parts of the title
+    title = title.split(/ :: /)[0].trim();
+
+    const dateRegex = /\b([A-Za-z]{3})\s+(\d{1,2}),\s+(\d{4})\b/;
+    let dateMatch = null;
+
+    // Possible sources for the date
+    const sources = [
+        document.body.innerText,
+        document.body.innerHTML,
+        document.querySelector("meta[property='article:published_time']")?.content,
+        document.querySelector("meta[name='date']")?.content,
+        ...Array.from(
+            document.querySelectorAll("h1, h2, h3, p, span")
+        ).map(el => el.innerText)
+    ];
+
+    // Try to find a date on the page
+    for (const source of sources) {
+        if (source && typeof source === "string") {
+            const match = source.match(dateRegex);
+
+            if (match) {
+                dateMatch = match;
+                break;
+            }
+        }
     }
-    console.log("✅ Found Date:", dateMatch[0], "➡ Reformatted as:", formattedDate);
-  } else {
-    console.warn("⚠ No date found on the page!");
-  }
 
-  // Replace colons with dashes
-  title = title.replace(/:/g, " -");
+    if (dateMatch) {
+        const formattedDate = formatDate(
+            dateMatch[1],
+            dateMatch[2],
+            dateMatch[3]
+        );
 
-  return title;
+        if (title.includes("/")) {
+            title = title.replace(
+                /\s*\/\s*/,
+                ` ${formattedDate} `
+            );
+        }
+
+        console.log(
+            "✅ Found Date:",
+            dateMatch[0],
+            "➡ Reformatted as:",
+            formattedDate
+        );
+
+    } else {
+        console.warn("⚠ No date found on the page!");
+    }
+
+    // Replace colons with dashes
+    title = title.replace(/:/g, " -");
+
+    // Only add performers when explicitly requested
+    if (includePerformers) {
+
+        const performers = [
+            ...document.querySelectorAll(
+                ".grid.grid-cols-performer-site-card h2 a[title]"
+            )
+        ]
+            .map(a => a.getAttribute("title").trim())
+            .filter(
+                (name, index, arr) =>
+                    name && arr.indexOf(name) === index
+            );
+
+        if (performers.length) {
+            title += ` (${performers.join(" - ")})`;
+        }
+    }
+
+    return title;
 }
 
 // Processes title for proff.no
@@ -446,12 +485,6 @@ function processSoliditetTitle(title) {
 		// Convert to Title Case
 		let formattedName = properTitleCase(companyName);
 
-		// Ensure adresses suffix remain untouched
-		formattedName = fixAddressSuffixes(formattedName);
-
-		// Ensure domain suffixes are properly formatted
-		formattedName = fixDomainCase(formattedName);
-
 		// Ensure company suffixes remain untouched
 		formattedName = fixCompanySuffixes(formattedName);
 
@@ -487,8 +520,6 @@ function processSoliditetFull(title) {
     let name = raw.replace(/\b\d{9}\b/, "").trim();
 
     name = properTitleCase(name);
-    name = fixAddressSuffixes(name);
-    name = fixDomainCase(name);
     name = fixCompanySuffixes(name);
 
 		// ===============================
@@ -756,8 +787,8 @@ function processSoliditetFull(title) {
 		let parts = [];
 
 		// Base
-		parts.push(`${org}`);
 		parts.push(`${name}`);
+		parts.push(`${org}`);
 		
 		// Besøksadresse
 		if (adresse) {
@@ -995,104 +1026,396 @@ function fixCompanySuffixes(companyName) {
     return companyName; // Return unchanged if no suffix is found
 }
 
-// Utility function to preserve adresses
-function fixAddressSuffixes(text) {
-    return text.replace(/(\d+)([A-Z])\b/g, (_, number, letter) => `${number}${letter}`);
-}
-
-// Utility function to process domain names
-function fixDomainCase(text) {
-    const domainPattern = /\b((?:[a-zA-Z0-9-]+)\.([a-zA-Z]{2,}))\b/g;
-    return text.replace(domainPattern, (match, domainName, tld) => {
-        return domainName.replace(new RegExp("\\." + tld + "$"), "." + tld.toLowerCase());
-    });
-}
-
-// Converts text to Title Case, preserving acronyms in `bigWords`
+// ============================================================
+// Converts text to Title Case
+// ============================================================
 function properTitleCase(text) {
+    if (!text) {
+        return text;
+    }
+
+    // ============================================================
+    // Capitalization overrides
+    // ============================================================
+
+    const capitalizationOverrides = new Set([
+        // Apple
+        "iPhone", "iPad", "iPod", "iMac", "MacBook", "macOS", "iOS",
+        "iPadOS", "watchOS", "tvOS", "AirPods", "AirTag", "CarPlay",
+        "FaceTime", "iMessage", "ApplePay",
+
+        // Microsoft / Google / Amazon
+        "OneDrive", "OneNote", "PowerBI", "PowerShell", "MS-DOS",
+        "YouTube", "ChromeOS", "Wear OS",
+
+        // AI / software / development
+        "OpenAI", "ChatGPT", "PyPI", "PyTorch", "TensorFlow", "NumPy",
+        "SciPy", "pandas", "Matplotlib", "Jupyter", "JupyterLab",
+        "IPython", "FastAPI", "Next.js", "Node.js", "Express.js",
+        "Vue.js", "Nuxt.js", "TypeScript", "VBScript", "GitHub", "GitLab",
+
+        // Services / platforms
+        "eBay", "PayPal", "WhatsApp", "LinkedIn", "TikTok",
+
+        // Technology
+        "WiFi", "Wi-Fi", "AirPlay", "AirDrop", "USB-C", "WebGL",
+        "WebGPU", "WebAssembly", "OpenGL", "OpenCL", "DirectX",
+        "OpenVPN", "WireGuard", "CloudFront", "PostgreSQL", "MySQL",
+        "MariaDB", "MongoDB", "SQLite", "Neo4j", "GraphQL",
+        "WebSocket", "OAuth", "OpenID",
+
+        // Video / media formats and codecs
+        "DoVi", "DolbyVision", "BluRay", "BRRip", "BDRip", "WEB-DL",
+        "WEBRip", "DVDRip", "TrueHD", "XviD", "DivX",
+
+        // Video resolutions
+        "144p", "240p", "360p", "480p", "576p", "720p", "900p",
+        "1080p", "1080i", "1200p", "1440p", "1600p", "1800p",
+        "2160p", "4320p",
+
+        // Other mixed / irregular capitalization
+        "McDonald's", "McCafe", "McFlurry", "eBook", "eBooks",
+        "eCommerce", "eMail", "eLearning", "iCloud", "iTunes",
+        "iWork", "iMovie", "iBooks", "QuickBooks", "QuickTime",
+        "BitLocker", "TrueType", "OpenType", "FreeType", "GameBoy",
+        "GameCube", "GamePass", "DualSense", "GeForce"
+    ]);
+
+    // ============================================================
+    // Small words
+    // ============================================================
+
     const smallWords = new Set([
         // English
         "a", "an", "the", "and", "but", "or", "nor", "for", "so", "yet",
-        "at", "by", "in", "of", "on", "to", "up", "with", "as", "if", "is",
-        "it", "than", "that", "via", "from", "over", "under", "into", "onto",
+        "at", "by", "in", "of", "on", "to", "up", "with", "as", "if",
+        "is", "it", "than", "that", "via", "from", "over", "under",
+        "into", "onto",
 
         // Norwegian / Danish / Swedish
-        "og", "av", "til", "på", "med", "for", "om", "mot", "uten", "etter",
-        "mellom", "under", "over", "ved", "fra", "inn", "ut", "som", "hvis",
+        "og", "av", "til", "på", "med", "for", "om", "mot", "uten",
+        "etter", "mellom", "under", "over", "ved", "fra", "inn",
+        "ut", "som", "hvis",
 
         // German
-        "und", "von", "zum", "zur", "im", "am", "an", "auf", "bei", "durch", "mit",
-        "ohne", "über", "unter", "vor", "nach", "gegen", "aus", "zwischen",
+        "und", "von", "zum", "zur", "im", "am", "an", "auf", "bei",
+        "durch", "mit", "ohne", "über", "unter", "vor", "nach",
+        "gegen", "aus", "zwischen",
 
         // French
-        "et", "de", "du", "des", "le", "la", "les", "à", "au", "aux", "en", "sur",
-        "dans", "par", "pour", "sans", "avec", "chez", "sous", "contre", "vers",
+        "et", "de", "du", "des", "le", "la", "les", "à", "au", "aux",
+        "en", "sur", "dans", "par", "pour", "sans", "avec", "chez",
+        "sous", "contre", "vers",
 
         // Spanish
-        "y", "de", "del", "la", "las", "el", "los", "a", "al", "por", "para", "con",
-        "sin", "sobre", "entre", "hacia", "según", "tras", "desde",
+        "y", "de", "del", "la", "las", "el", "los", "a", "al", "por",
+        "para", "con", "sin", "sobre", "entre", "hacia", "según",
+        "tras", "desde",
 
         // Dutch
-        "en", "van", "het", "de", "een", "op", "aan", "uit", "bij", "tot", "om",
-        "naar", "met", "over", "onder", "voor", "tussen"
+        "en", "van", "het", "de", "een", "op", "aan", "uit", "bij",
+        "tot", "om", "naar", "met", "over", "onder", "voor", "tussen"
     ]);
+
+    // ============================================================
+    // Known acronyms / uppercase words
+    // ============================================================
 
     const bigWords = new Set([
-        // Preserve all-uppercase acronyms like IBM, NASA, etc.
-        "ABBA", "AC/DC", "AI", "AMD", "ATM", "BBC", "BTS", "CEO", "DNA", "ETA",
-        "FBI", "GDP", "GPU", "IBM", "IKEA", "IRS", "KFC", "LCD", "LOL",
-        "NASA", "NBA", "NFL", "OMG", "PDF", "RAM", "RIP", "UN", "USA", "USB", "VIP", "VPN", "WIFI", "WTF"
+        "ABBA", "AC/DC", "AI", "AMD", "AMZN", "ATM", "AV1", "AVC",
+        "BBC", "BDREMUX", "BTS", "CAM", "CEO", "DNA", "DV", "ETA",
+        "FBI", "GDP", "GPU", "HDR", "HDTV", "HEVC", "IBM", "IKEA",
+        "IRS", "KFC", "LCD", "LOL", "NASA", "NBA", "NFL", "OMG",
+        "PDF", "R5", "RAM", "REMUX", "RIP", "SDR", "SCR", "TC",
+        "TS", "UN", "USA", "USB", "VIP", "VPN", "WTF"
     ]);
 
-    // Split text preserving spaces, hyphens, en/em-dashes, colons
-    let words = text.split(/(\s+|[-–—:])/);
+    // ============================================================
+    // Company suffixes
+    // ============================================================
 
-    // Track if the current word should be capitalized regardless of being small
+    const companySuffixes = new Set([
+        "AS", "ASA", "DA", "ANS", "ENK", "NUF", "IKS", "KF", "STI",
+        "EK", "BA", "SE", "PK", "AB", "HB", "KB", "A/S", "ApS",
+        "IVS", "P/S", "K/S", "I/S", "FMBA", "SMBA", "OYJ", "AG",
+        "GMBH", "SA", "SAS", "SARL", "SCA", "SCRL", "SNC", "SL",
+        "UAB", "BV", "NV", "BHD", "PLC"
+    ]);
+
+    // ============================================================
+    // Build case-insensitive lookup tables
+    // ============================================================
+
+    const overrideLookup = new Map();
+
+    for (const value of capitalizationOverrides) {
+        overrideLookup.set(value.toLowerCase(), value);
+    }
+
+    const suffixLookup = new Map();
+
+    for (const value of companySuffixes) {
+        suffixLookup.set(value.toLowerCase(), value);
+    }
+
+    // ============================================================
+    // Whole-text capitalization override
+    // ============================================================
+
+    const wholeOverride =
+        overrideLookup.get(text.trim().toLowerCase());
+
+    if (wholeOverride) {
+        return wholeOverride;
+    }
+
+    // ============================================================
+    // Tokenize without destroying punctuation or whitespace
+    //
+    // IMPORTANT:
+    // Use Unicode property escapes instead of \W/\w so that
+    // Norwegian characters such as Æ, Ø and Å remain part of
+    // the same word.
+    // ============================================================
+
+    const tokens = text.match(
+        /https?:\/\/\S+|www\.\S+|[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}|[\p{L}\p{N}]+(?:['’][\p{L}\p{N}]+)*|\s+|./gu
+    ) || [];
+
+    const result = [];
     let capitalizeNext = true;
 
-    return words
-        .map((word) => {
-            if (/^[-–—:\s]+$/.test(word)) {
-                // After a separator, next word should be capitalized
-                capitalizeNext = /[-–—:]/.test(word);
-                return word;
+    // ============================================================
+    // Process tokens
+    // ============================================================
+
+    for (let tokenIndex = 0; tokenIndex < tokens.length; tokenIndex++) {
+        const token = tokens[tokenIndex];
+
+        // --------------------------------------------------------
+        // Preserve whitespace exactly
+        // --------------------------------------------------------
+
+        if (/^\s+$/u.test(token)) {
+            result.push(token);
+            continue;
+        }
+
+        // --------------------------------------------------------
+        // Preserve URLs while normalizing their case
+        // --------------------------------------------------------
+
+        if (/^https?:\/\/\S+$|^www\.\S+$/i.test(token)) {
+            result.push(token.toLowerCase());
+            capitalizeNext = false;
+            continue;
+        }
+
+        // --------------------------------------------------------
+        // Preserve email structure
+        // --------------------------------------------------------
+
+        if (/^[^@\s]+@[^@\s]+\.[A-Za-z]{2,}$/.test(token)) {
+            let [localPart, domainPart] = token.split("@");
+
+            const localPartIsUpper =
+                /[A-Z]/.test(localPart) &&
+                !/[a-z]/.test(localPart);
+
+            const localPartIsInitialUpperRestLower =
+                /^[A-Z]/.test(localPart) &&
+                /[a-z]/.test(localPart.slice(1)) &&
+                localPart.slice(1) === localPart.slice(1).toLowerCase();
+
+            if (
+                localPartIsUpper ||
+                localPartIsInitialUpperRestLower
+            ) {
+                localPart = localPart.toLowerCase();
             }
 
-			// Preserve uppercase address suffixes
-			if (/\d+[A-Z]\b/.test(word)) {
-				return word; // Don't change it
-			}
-
-            // 🔥 FIX: Directly detect acronyms with periods and capitalize them fully.
-            if (/^([a-zA-Z]\.)+[a-zA-Z]\.?$/.test(word)) {
-                return word.toUpperCase();
-            }
-
-            // Handle known uppercase acronyms (e.g., NASA, IBM)
-            if (bigWords.has(word.toUpperCase())) {
-                capitalizeNext = false;
-                return word.toUpperCase();
-            }
-
-            // Handle apostrophes within words (both normal ' and curly ’ apostrophes)
-            // Handle apostrophes within words
-            word = word.replace(/([A-Za-z])['’]([A-Za-z])/g, (_, first, second) =>
-                first + "’" + second.toLowerCase()
+            result.push(
+                localPart + "@" + domainPart.toLowerCase()
             );
 
-            let lowerWord = word.toLowerCase();
+            capitalizeNext = false;
+            continue;
+        }
 
-            if (capitalizeNext || !smallWords.has(lowerWord)) {
-                capitalizeNext = false;
-                // Regular word: Title-case it
-                return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+        // --------------------------------------------------------
+        // Preserve punctuation
+        // --------------------------------------------------------
+
+        if (!/[\p{L}\p{N}]/u.test(token)) {
+            result.push(token);
+
+            if (/^[-–—:;([<{#]$/.test(token)) {
+                capitalizeNext = true;
             }
 
-            // Small word (and not at the start), stays lowercase
+            continue;
+        }
+
+        const lookupValue = token.toLowerCase();
+
+        // --------------------------------------------------------
+        // Apply capitalization overrides
+        // --------------------------------------------------------
+
+        const overrideValue = overrideLookup.get(lookupValue);
+
+        if (overrideValue) {
+            result.push(overrideValue);
             capitalizeNext = false;
-            return lowerWord;
-        })
-        .join("");
+            continue;
+        }
+
+        // --------------------------------------------------------
+        // Company suffix handling
+        // --------------------------------------------------------
+
+        const suffixValue = suffixLookup.get(lookupValue);
+
+        if (suffixValue) {
+            const followingTokens = tokens.slice(tokenIndex + 1);
+
+            const suffixBeforeSemicolon =
+                followingTokens.length >= 2 &&
+                followingTokens[0] === ";" &&
+                /^\s+$/u.test(followingTokens[1]);
+
+            let suffixPrecedesNumber = false;
+
+            if (!suffixBeforeSemicolon) {
+                let i = 0;
+
+                // Allow whitespace after suffix
+                while (
+                    i < followingTokens.length &&
+                    /^\s+$/u.test(followingTokens[i])
+                ) {
+                    i++;
+                }
+
+                // Allow -, _, or / as separator
+                if (
+                    i < followingTokens.length &&
+                    ["-", "_", "/"].includes(followingTokens[i])
+                ) {
+                    i++;
+
+                    // Allow whitespace after separator
+                    while (
+                        i < followingTokens.length &&
+                        /^\s+$/u.test(followingTokens[i])
+                    ) {
+                        i++;
+                    }
+                }
+
+                // Require 6+ digits
+                if (i < followingTokens.length) {
+                    suffixPrecedesNumber =
+                        /^\d{6,}$/.test(followingTokens[i]);
+                }
+            }
+
+            if (
+                suffixBeforeSemicolon ||
+                suffixPrecedesNumber
+            ) {
+                result.push(suffixValue);
+                capitalizeNext = false;
+                continue;
+            }
+        }
+
+        // --------------------------------------------------------
+        // Preserve known acronyms
+        // --------------------------------------------------------
+
+        if (bigWords.has(token.toUpperCase())) {
+            result.push(token.toUpperCase());
+            capitalizeNext = false;
+            continue;
+        }
+
+        // --------------------------------------------------------
+        // Preserve numbers
+        // --------------------------------------------------------
+
+        if (/^\d+$/u.test(token)) {
+            result.push(token);
+            capitalizeNext = false;
+            continue;
+        }
+
+        // --------------------------------------------------------
+        // Preserve underscore-connected and period-connected values
+        // --------------------------------------------------------
+
+        if (/^[A-Za-z0-9]+(?:[_.][A-Za-z0-9]+)+$/.test(token)) {
+            result.push(token.toLowerCase());
+            capitalizeNext = false;
+            continue;
+        }
+
+        // ========================================================
+        // Format ordinary words and apostrophe-connected words
+        // ========================================================
+
+        const apostropheCharacter =
+            token.includes("’") ? "’" : "'";
+
+        const normalizedToken = token
+            .replace(/’/g, apostropheCharacter)
+            .replace(/'/g, apostropheCharacter);
+
+        const apostropheParts =
+            normalizedToken.split(apostropheCharacter);
+
+        const formattedParts = [];
+
+        for (
+            let partIndex = 0;
+            partIndex < apostropheParts.length;
+            partIndex++
+        ) {
+            const part = apostropheParts[partIndex];
+
+            if (!part) {
+                formattedParts.push(part);
+                continue;
+            }
+
+            const lowerPart = part.toLowerCase();
+
+            const shouldCapitalize =
+                capitalizeNext ||
+                partIndex > 0 ||
+                !smallWords.has(lowerPart);
+
+            if (shouldCapitalize) {
+                // Capitalize only the first Unicode alphabetic character.
+                const formattedPart = lowerPart.replace(
+                    /\p{L}/u,
+                    match => match.toUpperCase()
+                );
+
+                formattedParts.push(formattedPart);
+            } else {
+                formattedParts.push(lowerPart);
+            }
+        }
+
+        result.push(
+            formattedParts.join(apostropheCharacter)
+        );
+
+        capitalizeNext = false;
+    }
+
+    return result.join("");
 }
 
 // Listen for message to copy the title
@@ -1106,23 +1429,49 @@ browserAPI.runtime.onMessage.addListener((message) => {
     let formattedTitle = siteHandler(title);
     let url = window.location.href;
 
+    const isPornDb = window.location.hostname.includes("theporndb.net");
+
     let copyText = formattedTitle; // Default action
 
-		if (message.action === "copyTitleWithUrl") {
-				copyText += `\n${url}`;
-		} else if (message.action === "copyMarkdown") {
-				copyText = `[${formattedTitle}](${url})`;
-		} else if (message.action === "copyRawTitle") {
-				copyText = title;
-		} else if (message.action === "copyUrl") {
-				copyText = url;
-		} else if (message.action === "copySoliditetOwner") {
-				copyText = processSoliditetOwner(title);
-		} else if (message.action === "copySoliditetBoard") {
-				copyText = processSoliditetBoard(title);
-		}	else if (message.action === "copySoliditetFull") {
-				copyText = processSoliditetFull(title);
-		}
+    if (message.action === "copyTitleWithUrl") {
+
+        // ThePornDB = Copy Plex + Performers
+        // Keep the full formatted title, but DO NOT add the URL.
+        if (isPornDb) {
+            copyText = processAdultdbTitle(title, true);
+        } else {
+            copyText = `${formattedTitle}\n${url}`;
+        }
+
+    } else if (message.action === "copyMarkdown") {
+
+        // ThePornDB Markdown = scene title only inside the brackets.
+        if (isPornDb) {
+            let sceneTitle = title
+                .split(/ :: /)[0]
+                .split(/\s*\/\s*/)[1]
+                ?.trim() || title;
+
+            copyText = `[${sceneTitle}](${url})`;
+        } else {
+            copyText = `[${formattedTitle}](${url})`;
+        }
+
+    } else if (message.action === "copyRawTitle") {
+        copyText = title;
+
+    } else if (message.action === "copyUrl") {
+        copyText = url;
+
+    } else if (message.action === "copySoliditetOwner") {
+        copyText = processSoliditetOwner(title);
+
+    } else if (message.action === "copySoliditetBoard") {
+        copyText = processSoliditetBoard(title);
+
+    } else if (message.action === "copySoliditetFull") {
+        copyText = processSoliditetFull(title);
+    }
 
     copyToClipboard(copyText);
 });

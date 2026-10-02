@@ -1,32 +1,59 @@
 {
-  "manifest_version": 2,
-  "name": "Copy Page Title",
-  "version": "2.4",
-  "description": "One-click copy of the page title.",
-  "permissions": ["activeTab", "tabs", "clipboardWrite"],
-  "icons": {
-    "128": "iconx128.png"
-  }, 
-  "browser_action": {
-    "default_icon": {
-      "16": "iconx128.png",
-      "48": "iconx128.png",
-      "128": "iconx128.png"
+    "manifest_version": 2,
+    "name": "Copy Page Title",
+    "version": "2.5",
+    "description": "One-click copy of the page title.",
+
+    "permissions": [
+        "activeTab",
+        "tabs",
+        "clipboardWrite",
+        "contextMenus"
+    ],
+
+    "icons": {
+        "128": "iconx128.png"
+    },
+
+    "browser_action": {
+        "default_icon": {
+            "16": "iconx128.png",
+            "48": "iconx128.png",
+            "128": "iconx128.png"
+        }
+    },
+
+    "background": {
+        "scripts": [
+            "background.js"
+        ],
+        "persistent": false
+    },
+
+    "content_scripts": [
+        {
+            "matches": [
+                "<all_urls>"
+            ],
+            "js": [
+                "content.js"
+            ]
+        }
+    ],
+
+    "commands": {
+        "copy-title-url": {
+            "suggested_key": {
+                "default": "Ctrl+Shift+F",
+                "mac": "MacCtrl+Shift+F"
+            },
+            "description": "Copy Title + URL"
+        }
+    },
+
+    "browser_specific_settings": {
+        "gecko": {
+            "id": "copy-page-title@yourdomain.com"
+        }
     }
-  },
-  "background": {
-    "scripts": ["background.js"],
-    "persistent": false
-  },
-  "content_scripts": [
-    {
-      "matches": ["<all_urls>"],
-      "js": ["content.js"]
-    }
-  ],
-  "browser_specific_settings": {
-    "gecko": {
-      "id": "copy-page-title@yourdomain.com"
-    }
-  }
 }
