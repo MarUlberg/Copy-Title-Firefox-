@@ -1,14 +1,15 @@
 {
     "manifest_version": 2,
     "name": "Copy Page Title",
-    "version": "2.5",
+    "version": "2.6",
     "description": "One-click copy of the page title.",
 
     "permissions": [
         "activeTab",
         "tabs",
         "clipboardWrite",
-        "contextMenus"
+        "contextMenus",
+        "<all_urls>"
     ],
 
     "icons": {
@@ -42,12 +43,36 @@
     ],
 
     "commands": {
-        "copy-title-url": {
+        "copy-title": {
+            "description": "Copy Title"
+        },
+
+        "copy-url": {
             "suggested_key": {
                 "default": "Ctrl+Shift+F",
                 "mac": "MacCtrl+Shift+F"
             },
+            "description": "Copy URL"
+        },
+
+        "copy-raw": {
+            "description": "Copy Raw Title"
+        },
+
+        "copy-title-url": {
             "description": "Copy Title + URL"
+        },
+
+        "copy-markdown": {
+            "description": "Markdown Link"
+        },
+
+        "copy-bbcode": {
+            "description": "BBCode Link"
+        },
+
+        "copy-html": {
+            "description": "HTML Link"
         }
     },
 

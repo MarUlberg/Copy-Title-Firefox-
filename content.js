@@ -1,3 +1,4 @@
+console.log("🟡 Content script loaded!");
 /**
  * Copy Page Title
  *
@@ -15,8 +16,6 @@
  * shared between both browser implementations ensures that page-level
  * copy behavior remains consistent across the two extensions.
  */
- 
-console.log("🟡 Content script loaded!");
 
 // Determines which function to use based on the website
 const siteHandlers = {
@@ -33,6 +32,7 @@ const siteHandlers = {
     "twitch.tv": processTwitchTitle,
     "x.com": processTwitterTitle,
     "reddit.com": processRedditTitle,
+    "retroachievements.org": processRetroTitle,
     "youtube.com": processYouTubeTitle,
 };
 
@@ -44,6 +44,25 @@ function getSiteHandler() {
     }
   }
   return processGenericTitle;
+}
+
+// Determines which function to use for site-specific URL commands
+const siteUrlHandlers = {
+    "theporndb.net": (title) => processAdultdbTitle(title, true),
+    "soliditet.no": processSoliditetFull,
+    "retroachievements.org": processRetroAchivements,
+};
+
+function getSiteUrlHandler() {
+    const siteURL = window.location.origin;
+
+    for (let site in siteUrlHandlers) {
+        if (siteURL.includes(site)) {
+            return siteUrlHandlers[site];
+        }
+    }
+
+    return null;
 }
 
 // Processes title for Amazon product pages
@@ -416,6 +435,245 @@ function processRedditTitle(title) {
 
     console.log("📋 Formatted Title:", title);
     return title;
+}
+
+// Processes title for RetroAchievements
+function processRetroTitle(title) {
+    console.log("🟣 Processing RetroAchievements URL");
+
+    const pathname = window.location.pathname.toLowerCase();
+
+    // ==========================================
+    // RETROACHIEVEMENTS: GAME
+    // ==========================================
+    if (pathname.startsWith("/game/")) {
+        console.log("🎮 RetroAchievements game page");
+
+        // Remove " · RetroAchievements"
+        title = title.replace(/ · RetroAchievements$/, "");
+
+        // Remove console shown in parentheses at the end
+        title = title.replace(/\s*\([^()]*\)\s*$/, "");
+
+        // Move ~Hack~ to the end and convert it to [Hack]
+        const isHack = /^~Hack~\s*/i.test(title);
+
+        title = title.replace(/^~Hack~\s*/i, "");
+
+        if (isHack) {
+            title += " [Hack]";
+        }
+
+        return title;
+    }
+
+    // ==========================================
+    // RETROACHIEVEMENTS: USER
+    // ==========================================
+    if (pathname.startsWith("/user/")) {
+        console.log("👤 RetroAchievements user page");
+
+        // Remove " · RetroAchievements"
+        const username = title.replace(/ · RetroAchievements$/, "");
+
+        // Find RetroAchievement Points
+        const pointsElement = document.querySelector(
+            'article p span span.TrueRatio'
+        );
+
+        let points = "";
+
+        if (pointsElement) {
+            const pointsContainer = pointsElement.parentElement;
+            points = pointsContainer.firstChild.textContent.trim();
+        }
+
+        // Find Last Played game
+        const gameElement = document.querySelector(
+            'article > div:nth-child(2) > div:nth-child(2) > div > a > p'
+        );
+
+        let game = "";
+
+        if (gameElement) {
+            const gameClone = gameElement.cloneNode(true);
+            const hackTag = gameClone.querySelector(".tag");
+
+            if (hackTag) {
+                hackTag.remove();
+                game = `${gameClone.textContent.trim()} [Hack]`;
+            } else {
+                game = gameClone.textContent.trim();
+            }
+        }
+
+        // Find Last Played progress
+        const progressElement = document.querySelector(
+            'article > div:nth-child(2) > div:nth-child(2) > p.text-2xs'
+        );
+
+        let progress = "";
+
+        if (progressElement) {
+            progress = progressElement.textContent.trim();
+        }
+
+        // Build result
+        let result = username;
+
+        if (points) {
+            result += ` - ${points} RetroAchievement Points`;
+        }
+
+        if (game) {
+            result += ` - Last Played: ${game}`;
+        }
+
+        if (progress) {
+            result += ` - ${progress}`;
+        }
+
+        return result;
+    }
+
+    // ==========================================
+    // OTHER RETROACHIEVEMENTS PAGES
+    // ==========================================
+    console.log("⚪ Generic RetroAchievements page");
+
+    return processGenericTitle(title);
+}
+
+// Processes RetroAchievements URL commands
+function processRetroAchivements(title) {
+    console.log("🟣 Processing RetroAchievements URL");
+
+    const pathname = window.location.pathname.toLowerCase();
+
+    // ==========================================
+    // RETROACHIEVEMENTS: GAME
+    // ==========================================
+    if (pathname.startsWith("/game/")) {
+        console.log("🎮 Processing RetroAchievements game");
+
+        const unlocked = [];
+        const locked = [];
+
+        const achievementLinks = document.querySelectorAll(
+            '#game-achievement-sets-container a[data-testid="link"][href*="/achievement/"]'
+        );
+
+        console.log(
+            `🏆 Found ${achievementLinks.length} achievement links`
+        );
+
+        achievementLinks.forEach(link => {
+            const achievementTitle = link.innerText.trim();
+
+            if (!achievementTitle) {
+                return;
+            }
+
+            const achievementContainer = link.closest("li");
+
+            if (!achievementContainer) {
+                return;
+            }
+
+            const isUnlocked = [...achievementContainer.querySelectorAll("p")]
+                .some(p => /^Unlocked\b/i.test(p.innerText.trim()));
+
+            if (isUnlocked) {
+                unlocked.push(achievementTitle);
+            } else {
+                locked.push(achievementTitle);
+            }
+        });
+
+        const result =
+            `Unlocked: ${unlocked.join(", ")}; ` +
+            `Locked: ${locked.join(", ")}`;
+
+        console.log("📋 RetroAchievements result:", result);
+
+        return result;
+    }
+
+    // ==========================================
+    // RETROACHIEVEMENTS: USER
+    // ==========================================
+    if (pathname.startsWith("/user/")) {
+        console.log("👤 Processing RetroAchievements user");
+
+        const username = title.replace(/ · RetroAchievements$/, "");
+
+        // RetroAchievement Points
+        const pointsElement = document.querySelector(
+            'article p span span.TrueRatio'
+        );
+
+        let points = "";
+
+        if (pointsElement) {
+            const pointsContainer = pointsElement.parentElement;
+            points = pointsContainer.firstChild.textContent.trim();
+        }
+
+        // Last Played game
+        const gameElement = document.querySelector(
+            'article > div:nth-child(2) > div:nth-child(2) > div > a > p'
+        );
+
+        let game = "";
+
+        if (gameElement) {
+            const gameClone = gameElement.cloneNode(true);
+            const hackTag = gameClone.querySelector(".tag");
+
+            if (hackTag) {
+                hackTag.remove();
+                game = `${gameClone.textContent.trim()} [Hack]`;
+            } else {
+                game = gameClone.textContent.trim();
+            }
+        }
+
+        // Last Played progress
+        const progressElement = document.querySelector(
+            'article > div:nth-child(2) > div:nth-child(2) > p.text-2xs'
+        );
+
+        let progress = "";
+
+        if (progressElement) {
+            progress = progressElement.textContent.trim();
+        }
+
+        let result = username;
+
+        if (points) {
+            result += ` - ${points} RetroAchievement Points`;
+        }
+
+        if (game) {
+            result += ` - Last Played: ${game}`;
+        }
+
+        if (progress) {
+            result += ` - ${progress}`;
+        }
+
+        console.log("📋 RetroAchievements result:", result);
+
+        return result;
+    }
+
+    // ==========================================
+    // OTHER RETROACHIEVEMENTS PAGES
+    // ==========================================
+    console.log("⚪ Generic RetroAchievements URL");
+
+    return window.location.href;
 }
 
 // Processes title for soliditet.no
@@ -1436,63 +1694,116 @@ function properTitleCase(text) {
     return result.join("");
 }
 
+function getLinkTitle(title) {
+    if (window.location.hostname.includes("theporndb.net")) {
+        return (
+            title
+                .split(/ :: /)[0]
+                .split(/\s*\/\s*/)[1]
+                ?.trim() || title
+        );
+    }
+
+    return getSiteHandler()(title);
+}
+
 // Listen for message to copy the title
 const browserAPI = typeof browser !== "undefined" ? browser : chrome;
 
 browserAPI.runtime.onMessage.addListener((message) => {
     console.log("📩 Message received in content.js:", message);
 
-    let title = document.title;
-    let siteHandler = getSiteHandler();
-    let formattedTitle = siteHandler(title);
-    let url = window.location.href;
+    const title = document.title;
+    const siteHandler = getSiteHandler();
+    const formattedTitle = siteHandler(title);
+    const url = window.location.href;
 
-    const isPornDb = window.location.hostname.includes("theporndb.net");
+    // One shared title for all link-style outputs.
+    const linkTitle = getLinkTitle(title);
 
-    let copyText = formattedTitle; // Default action
+    let copyText = formattedTitle;
 
-    if (message.action === "copyTitleWithUrl") {
+    // ============================================================
+    // TITLE
+    // ============================================================
 
-        // ThePornDB = Copy Plex + Performers
-        // Keep the full formatted title, but DO NOT add the URL.
-        if (isPornDb) {
-            copyText = processAdultdbTitle(title, true);
-        } else {
-            copyText = `${formattedTitle}\n${url}`;
-        }
+    if (message.action === "copyTitle") {
+
+        copyText = formattedTitle;
+
+    // ============================================================
+    // TITLE + URL
+    // ============================================================
+
+    } else if (message.action === "copyTitleWithUrl") {
+
+        copyText = `${linkTitle} ${url}`;
+
+    // ============================================================
+    // MARKDOWN
+    // ============================================================
 
     } else if (message.action === "copyMarkdown") {
 
-        // ThePornDB Markdown = scene title only inside the brackets.
-        if (isPornDb) {
-            let sceneTitle = title
-                .split(/ :: /)[0]
-                .split(/\s*\/\s*/)[1]
-                ?.trim() || title;
+        copyText = `[${linkTitle}](${url})`;
 
-            copyText = `[${sceneTitle}](${url})`;
-        } else {
-            copyText = `[${formattedTitle}](${url})`;
-        }
+    // ============================================================
+    // BBCODE
+    // ============================================================
+
+    } else if (message.action === "copyBBCode") {
+
+        copyText = `[url=${url}]${linkTitle}[/url]`;
+
+    // ============================================================
+    // HTML
+    // ============================================================
+
+    } else if (message.action === "copyHTML") {
+
+        const escapeHTML = (text) =>
+            text
+                .replace(/&/g, "&amp;")
+                .replace(/"/g, "&quot;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;");
+
+        copyText =
+            `<a href="${escapeHTML(url)}">${escapeHTML(linkTitle)}</a>`;
+
+    // ============================================================
+    // RAW TITLE
+    // ============================================================
 
     } else if (message.action === "copyRawTitle") {
+
         copyText = title;
 
+    // ============================================================
+    // URL / SITE-SPECIFIC SECONDARY ACTION
+    // ============================================================
+
     } else if (message.action === "copyUrl") {
-        copyText = url;
 
-    } else if (message.action === "copySoliditetOwner") {
-        copyText = processSoliditetOwner(title);
+        const siteUrlHandler = getSiteUrlHandler();
 
-    } else if (message.action === "copySoliditetBoard") {
-        copyText = processSoliditetBoard(title);
-
-    } else if (message.action === "copySoliditetFull") {
-        copyText = processSoliditetFull(title);
+        if (siteUrlHandler) {
+            copyText = siteUrlHandler(title);
+        } else {
+            copyText = url;
+        }
     }
-
-    copyToClipboard(copyText);
+		    try {
+        browserAPI.runtime.sendMessage({
+            action: "copyToClipboard",
+            text: copyText
+        });
+    } catch (e) {
+        console.error("❌ Failed to copy:", e);
+        copyToClipboard(copyText);
+    }
 });
+
 
 // Function to copy text to clipboard
 function copyToClipboard(text) {

@@ -4,15 +4,8 @@
  * Background script for the Firefox version of the Copy Page Title
  * browser extension.
  *
- * This script manages the extension's background functionality, including
- * context menus, keyboard shortcuts, toolbar interactions, tab changes,
- * and communication with the content script. It coordinates user
- * actions from the browser interface and passes the appropriate copy
- * requests to content.js for page-level processing.
- *
- * This file contains the Firefox-specific background implementation of
- * the extension. The content.js file is shared unchanged between the
- * Chrome and Firefox versions.
+ * Firefox-specific browser plumbing lives here. Page/title processing
+ * remains in content.js, which is shared with Chrome.
  */
 
 // ============================================================
@@ -28,50 +21,101 @@ const browserAPI = typeof browser !== "undefined" ? browser : chrome;
 
 const MENU_IDS = {
     TITLE: "copy-title",
-    TITLE_URL: "copy-title-url",
     URL: "copy-url",
-    MARKDOWN: "copy-markdown",
     RAW: "copy-raw",
-    COMPANY_NAME_OPTIONS: "openCompanyNameOptions"
+    TITLE_URL: "copy-title-url",
+    MARKDOWN: "copy-markdown",
+    BBCODE: "copy-bbcode",
+    HTML: "copy-html"
+};
+
+const customSite = {
+    "amazon.": {
+        title: "Copy Product Title       (Click Extension Icon)"
+    },
+
+    "mail.google.com": {
+        title: "Copy Email Address       (Click Extension Icon)"
+    },
+
+    "instagram.com": {
+        title: "Copy Instagram Username  (Click Extension Icon)"
+    },
+
+    "iptorrents.com": {
+        title: "Copy Video Title         (Click Extension Icon)"
+    },
+
+    "mobygames.com": {
+        title: "Copy Game Title          (Click Extension Icon)"
+    },
+
+    "theporndb.net": {
+        title: "Copy Plex Filename       (Click Extension Icon)",
+        url: "Copy Plex + Performer    (Shift+Ctrl+F)"
+    },
+
+    "proff.no": {
+        title: "Copy Company + Orgnr.   (Click Extension Icon)"
+    },
+
+    "pornhub.com": {
+        title: "Copy PornHub Title       (Click Extension Icon)"
+    },
+
+    "soliditet.no": {
+        title: "Copy Company + Orgnr.   (Click Extension Icon)",
+        url: "Copy Full Company Info   (Shift+Ctrl+F)"
+    },
+
+    "open.spotify.com": {
+        title: "Copy Spotify Title       (Click Extension Icon)"
+    },
+
+    "twitch.tv": {
+        title: "Copy Streamer Name   (Click Extension Icon)"
+    },
+
+    "x.com": {
+        title: "Copy X Username          (Click Extension Icon)"
+    },
+
+    "reddit.com": {
+        title: "Copy Reddit Title        (Click Extension Icon)"
+    },
+
+    "retroachievements.org/user/": {
+        title: "Copy User Achievement Points (Click Extension Icon)",
+        url: "Copy User + Last Played   (Shift+Ctrl+F)"
+    },
+
+    "retroachievements.org/game/": {
+        title: "Copy Game Title        (Click Extension Icon)",
+        url: "Copy Achievement List   (Shift+Ctrl+F)"
+    },
+
+    "youtube.com": {
+        title: "Copy YouTube Video Title  (Click Extension Icon)"
+    }
 };
 
 
-// ============================================================
-// CHECK URL
-// ============================================================
-
-function isSoliditetUrl(url) {
+function getSiteMenuConfig(url) {
     if (!url) {
-        return false;
+        return null;
     }
 
     try {
         const hostname = new URL(url).hostname.toLowerCase();
 
-        return (
-            hostname === "soliditet.no" ||
-            hostname.endsWith(".soliditet.no")
-        );
+        return Object.entries(customSite).find(
+            ([site]) =>
+                hostname === site ||
+                hostname.endsWith(`.${site}`)
+        )?.[1] || null;
+
     } catch (error) {
-        return false;
-    }
-}
-
-
-function isPornDbUrl(url) {
-    if (!url) {
-        return false;
-    }
-
-    try {
-        const hostname = new URL(url).hostname.toLowerCase();
-
-        return (
-            hostname === "theporndb.net" ||
-            hostname.endsWith(".theporndb.net")
-        );
-    } catch (error) {
-        return false;
+        return null;
     }
 }
 
@@ -81,27 +125,30 @@ function isPornDbUrl(url) {
 // ============================================================
 
 function updateContextMenuForTab(tab) {
-    let titleText;
-    let titleUrlText;
+    let titleText = "Copy Title          (Click Extension Icon)";
+    let urlText = "Copy URL             (Shift+Ctrl+F)";
 
-    if (isPornDbUrl(tab?.url)) {
-        titleText = "Copy Plex Filename  (Click Extension Icon)";
-        titleUrlText = "Copy Plex + Performer  (Shift+Ctrl+F)";
-    } else {
-        titleText = "Copy Title          (Click Extension Icon)";
+    const siteLabels = getSiteMenuConfig(tab?.url);
 
-        titleUrlText = isSoliditetUrl(tab?.url)
-            ? "Copy Company Info      (Shift+Ctrl+F)"
-            : "Copy Title + URL      (Shift+Ctrl+F)";
+    if (siteLabels) {
+        if (siteLabels.title) {
+            titleText = siteLabels.title;
+        }
+
+        if (siteLabels.url) {
+            urlText = siteLabels.url;
+        }
     }
 
-    browserAPI.contextMenus.update(MENU_IDS.TITLE, {
-        title: titleText
-    });
+    browserAPI.contextMenus.update(
+        MENU_IDS.TITLE,
+        { title: titleText }
+    ).catch(() => {});
 
-    browserAPI.contextMenus.update(MENU_IDS.TITLE_URL, {
-        title: titleUrlText
-    });
+    browserAPI.contextMenus.update(
+        MENU_IDS.URL,
+        { title: urlText }
+    ).catch(() => {});
 }
 
 
@@ -110,44 +157,48 @@ function updateContextMenuForTab(tab) {
 // ============================================================
 
 function createContextMenus() {
-    // Remove old menu entries first so the order is recreated consistently.
     browserAPI.contextMenus.removeAll()
         .then(() => {
-
             browserAPI.contextMenus.create({
                 id: MENU_IDS.TITLE,
-                title: "Copy Title          (Click Extension Icon)",
-                contexts: ["page"]
-            });
-
-            browserAPI.contextMenus.create({
-                id: MENU_IDS.TITLE_URL,
-                title: "Copy Title + URL      (Shift+Ctrl+F)",
+                title: "Copy Title (Click Extension Icon)",
                 contexts: ["page"]
             });
 
             browserAPI.contextMenus.create({
                 id: MENU_IDS.URL,
-                title: "Copy URL",
-                contexts: ["page"]
-            });
-
-            browserAPI.contextMenus.create({
-                id: MENU_IDS.MARKDOWN,
-                title: "Copy Markdown",
+                title: "Copy URL (Shift+Ctrl+F)",
                 contexts: ["page"]
             });
 
             browserAPI.contextMenus.create({
                 id: MENU_IDS.RAW,
-                title: "Copy RAW",
+                title: "Copy Raw Title",
                 contexts: ["page"]
             });
 
             browserAPI.contextMenus.create({
-                id: MENU_IDS.COMPANY_NAME_OPTIONS,
-                title: "Load Company Name Dictionary",
-                contexts: ["browser_action"]
+                id: MENU_IDS.TITLE_URL,
+                title: "Copy Title + URL",
+                contexts: ["page"]
+            });
+
+            browserAPI.contextMenus.create({
+                id: MENU_IDS.MARKDOWN,
+                title: "-- Markdown Link",
+                contexts: ["page"]
+            });
+
+            browserAPI.contextMenus.create({
+                id: MENU_IDS.BBCODE,
+                title: "-- BBCode Link",
+                contexts: ["page"]
+            });
+
+            browserAPI.contextMenus.create({
+                id: MENU_IDS.HTML,
+                title: "-- HTML Link",
+                contexts: ["page"]
             });
         })
         .catch((error) => {
@@ -167,15 +218,8 @@ createContextMenus();
 
 browserAPI.tabs.onActivated.addListener((activeInfo) => {
     browserAPI.tabs.get(activeInfo.tabId)
-        .then((tab) => {
-            updateContextMenuForTab(tab);
-        })
-        .catch((error) => {
-            console.error(
-                "❌ Failed to get active tab:",
-                error
-            );
-        });
+        .then((tab) => updateContextMenuForTab(tab))
+        .catch(() => {});
 });
 
 
@@ -195,11 +239,13 @@ browserAPI.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 // ============================================================
 
 function runCopyCommand(tabId, action) {
+    // content.js is declared as a Firefox content script in manifest.json,
+    // so there is no need to inject it repeatedly.
     browserAPI.tabs.sendMessage(tabId, {
         action: action
     }).catch((error) => {
         console.error(
-            "❌ Failed to send content action:",
+            "❌ Failed to send action to content.js:",
             error
         );
     });
@@ -226,29 +272,25 @@ browserAPI.contextMenus.onClicked.addListener((info, tab) => {
             action = "copyUrl";
             break;
 
+        case MENU_IDS.RAW:
+            action = "copyRawTitle";
+            break;
+
         case MENU_IDS.TITLE_URL:
-            if (isPornDbUrl(tab.url)) {
-                action = "copyTitleWithUrl";
-            } else if (isSoliditetUrl(tab.url)) {
-                action = "copySoliditetFull";
-            } else {
-                action = "copyTitleWithUrl";
-            }
+            action = "copyTitleWithUrl";
             break;
 
         case MENU_IDS.MARKDOWN:
             action = "copyMarkdown";
             break;
 
-        case MENU_IDS.RAW:
-            action = "copyRawTitle";
+        case MENU_IDS.BBCODE:
+            action = "copyBBCode";
             break;
 
-        case MENU_IDS.COMPANY_NAME_OPTIONS:
-            browserAPI.tabs.create({
-                url: browserAPI.runtime.getURL("file-picker.html")
-            });
-            return;
+        case MENU_IDS.HTML:
+            action = "copyHTML";
+            break;
 
         default:
             return;
@@ -267,19 +309,42 @@ browserAPI.commands.onCommand.addListener((command, tab) => {
         return;
     }
 
+    let action;
+
     switch (command) {
+        case "copy-title":
+            action = "copyTitle";
+            break;
+
+        case "copy-url":
+            action = "copyUrl";
+            break;
+
+        case "copy-raw":
+            action = "copyRawTitle";
+            break;
+
         case "copy-title-url":
-            runCopyCommand(
-                tab.id,
-                isSoliditetUrl(tab.url)
-                    ? "copySoliditetFull"
-                    : "copyTitleWithUrl"
-            );
+            action = "copyTitleWithUrl";
+            break;
+
+        case "copy-markdown":
+            action = "copyMarkdown";
+            break;
+
+        case "copy-bbcode":
+            action = "copyBBCode";
+            break;
+
+        case "copy-html":
+            action = "copyHTML";
             break;
 
         default:
             return;
     }
+
+    runCopyCommand(tab.id, action);
 });
 
 
@@ -287,37 +352,10 @@ browserAPI.commands.onCommand.addListener((command, tab) => {
 // TOOLBAR BUTTON
 // ============================================================
 
-browserAPI.browserAction.onClicked.addListener((tab, clickData) => {
+browserAPI.browserAction.onClicked.addListener((tab) => {
     if (!tab?.id) {
         return;
     }
 
-    console.log("🟢 Extension clicked!", clickData);
-
-    let action = "copyTitle";
-
-    if (
-        clickData.modifiers.includes("Shift") &&
-        clickData.modifiers.includes("Alt")
-    ) {
-        action = "copyMarkdown";
-
-    } else if (
-        clickData.modifiers.includes("Shift") &&
-        clickData.modifiers.includes("Ctrl")
-    ) {
-        action = "copyRawTitle";
-
-    } else if (clickData.modifiers.includes("Shift")) {
-        if (isSoliditetUrl(tab.url)) {
-            action = "copySoliditetFull";
-        } else {
-            action = "copyTitleWithUrl";
-        }
-
-    } else if (clickData.modifiers.includes("Ctrl")) {
-        action = "copyUrl";
-    }
-
-    runCopyCommand(tab.id, action);
+    runCopyCommand(tab.id, "copyTitle");
 });
