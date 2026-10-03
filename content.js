@@ -1,4 +1,3 @@
-console.log("🟡 Content script loaded!");
 /**
  * Copy Page Title
  *
@@ -16,6 +15,11 @@ console.log("🟡 Content script loaded!");
  * shared between both browser implementations ensures that page-level
  * copy behavior remains consistent across the two extensions.
  */
+
+(function () {
+    "use strict";
+
+    console.log("🟡 Content script loaded!");
 
 // Determines which function to use based on the website
 const siteHandlers = {
@@ -1694,7 +1698,7 @@ function properTitleCase(text) {
     return result.join("");
 }
 
-function getLinkTitle(title) {
+function getLinkTitle(title, formattedTitle) {
     if (window.location.hostname.includes("theporndb.net")) {
         return (
             title
@@ -1704,7 +1708,7 @@ function getLinkTitle(title) {
         );
     }
 
-    return getSiteHandler()(title);
+    return formattedTitle;
 }
 
 // Listen for message to copy the title
@@ -1719,7 +1723,7 @@ browserAPI.runtime.onMessage.addListener((message) => {
     const url = window.location.href;
 
     // One shared title for all link-style outputs.
-    const linkTitle = getLinkTitle(title);
+    const linkTitle = getLinkTitle(title, formattedTitle);
 
     let copyText = formattedTitle;
 
@@ -1852,3 +1856,4 @@ function processPageTitle() {
     copyToClipboard(formattedTitle);
   }
 }
+})();
