@@ -492,49 +492,11 @@ function processRetroTitle(title) {
             points = pointsContainer.firstChild.textContent.trim();
         }
 
-        // Find Last Played game
-        const gameElement = document.querySelector(
-            'article > div:nth-child(2) > div:nth-child(2) > div > a > p'
-        );
-
-        let game = "";
-
-        if (gameElement) {
-            const gameClone = gameElement.cloneNode(true);
-            const hackTag = gameClone.querySelector(".tag");
-
-            if (hackTag) {
-                hackTag.remove();
-                game = `${gameClone.textContent.trim()} [Hack]`;
-            } else {
-                game = gameClone.textContent.trim();
-            }
-        }
-
-        // Find Last Played progress
-        const progressElement = document.querySelector(
-            'article > div:nth-child(2) > div:nth-child(2) > p.text-2xs'
-        );
-
-        let progress = "";
-
-        if (progressElement) {
-            progress = progressElement.textContent.trim();
-        }
-
         // Build result
         let result = username;
 
         if (points) {
             result += ` - ${points} RetroAchievement Points`;
-        }
-
-        if (game) {
-            result += ` - Last Played: ${game}`;
-        }
-
-        if (progress) {
-            result += ` - ${progress}`;
         }
 
         return result;
