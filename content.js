@@ -71,7 +71,7 @@ function getSiteUrlHandler() {
 
 // Processes title for Amazon product pages
 function processAmazonTitle(title) {
-  console.log("🛒 Processing title for Amazon");
+  console.log("🔵 Processing title for Amazon");
 
   // Remove "Amazon: " or "Amazon.com: " from the beginning if present
   title = title.replace(/^Amazon(\.com)?:\s*/i, "");
@@ -96,7 +96,7 @@ function processAmazonTitle(title) {
 
 // Processes title for Gmail
 function processGmailTitle(title) {
-  console.log("📧 Processing title for Gmail");
+  console.log("🔵 Processing title for Gmail");
 
   let parts = title.split(" - ");
   
@@ -112,7 +112,7 @@ function processGmailTitle(title) {
 
 // Processes title for Instagram pages by extracting the username
 function processInstagramTitle(title) {
-    console.log("📸 Processing title for Instagram");
+    console.log("🔵 Processing title for Instagram");
 
     // Try to find the username in the specific span class
     let usernameElement = document.querySelector("span.x1lliihq.x193iq5w.x6ikm8r.x10wlt62.xlyipyv.xuxw1ft");
@@ -271,7 +271,7 @@ function processTorrentsTitle(rawTitle) {
 
 // Processes title for MobyGames
 function processMobygamesTitle(title) {
-    console.log("🎮 Processing title for MobyGames");
+    console.log("🔵 Processing title for MobyGames");
 
     const mobyPattern = /( box covers| cover or packaging material) - MobyGames$/;
 
@@ -288,7 +288,7 @@ function processMobygamesTitle(title) {
 
 // Processes title for theporndb.net
 function processAdultdbTitle(title, includePerformers = false) {
-    console.log("🔴 Processing title for ThePornDB");
+    console.log("🔵 Processing title for ThePornDB");
 
     function formatDate(month, day, year) {
         const months = {
@@ -344,7 +344,7 @@ function processAdultdbTitle(title, includePerformers = false) {
         }
 
         console.log(
-            "✅ Found Date:",
+            "✓ Found Date:",
             dateMatch[0],
             "➡ Reformatted as:",
             formattedDate
@@ -397,7 +397,7 @@ function processProffTitle(title) {
 
 // Processes title for Pornhub.com
 function processPHTitle(title) {
-    console.log("🎭 Processing title for PornHub");
+    console.log("🔵 Processing title for PornHub");
     
     // Remove " - Pornhub.com" from the end
     let cleanedTitle = title.replace(/\s*-\s*Pornhub\.com$/i, "").trim();
@@ -429,7 +429,7 @@ function processPHTitle(title) {
 
 // Processes title for Reddit
 function processRedditTitle(title) {
-    console.log("🔴 Processing title for Reddit");
+    console.log("🔵 Processing title for Reddit");
 
     // Remove flair (anything inside brackets at the beginning)
     title = title.replace(/^\[.*?\]\s*/, "");
@@ -443,7 +443,7 @@ function processRedditTitle(title) {
 
 // Processes title for RetroAchievements
 function processRetroTitle(title) {
-    console.log("🟣 Processing RetroAchievements URL");
+    console.log("🔵 Processing title for RetroAchievements");
 
     const pathname = window.location.pathname.toLowerCase();
 
@@ -505,14 +505,13 @@ function processRetroTitle(title) {
     // ==========================================
     // OTHER RETROACHIEVEMENTS PAGES
     // ==========================================
-    console.log("⚪ Generic RetroAchievements page");
 
     return processGenericTitle(title);
 }
 
 // Processes RetroAchievements URL commands
 function processRetroAchivements(title) {
-    console.log("🟣 Processing RetroAchievements URL");
+    console.log("🟣 Processing URL alternative for RetroAchievements");
 
     const pathname = window.location.pathname.toLowerCase();
 
@@ -559,8 +558,6 @@ function processRetroAchivements(title) {
         const result =
             `Unlocked: ${unlocked.join(", ")}; ` +
             `Locked: ${locked.join(", ")}`;
-
-        console.log("📋 RetroAchievements result:", result);
 
         return result;
     }
@@ -637,7 +634,6 @@ function processRetroAchivements(title) {
     // ==========================================
     // OTHER RETROACHIEVEMENTS PAGES
     // ==========================================
-    console.log("⚪ Generic RetroAchievements URL");
 
     return window.location.href;
 }
@@ -654,7 +650,7 @@ function processSoliditetTitle(title) {
 
         if (companyElement) {
             let companyName = companyElement.innerText.trim();
-            console.log("✅ Found company name:", companyName);
+            console.log("✓ Found company name:", companyName);
 
             // Check if the URL ends with "/nordicCompanyReport.sp"
             if (window.location.pathname.endsWith("/nordicCompanyReport.sp")) {
@@ -741,7 +737,7 @@ function processSoliditetTitle(title) {
 // SOLIDITET: FULL
 // ===============================
 function processSoliditetFull(title) {
-    console.log("🟦 Processing Soliditet FULL");
+    console.log("🟣 Processing URL alternative for Soliditet.no");
 
     // ===============================
     // COMPANY
@@ -937,7 +933,6 @@ function processSoliditetFull(title) {
 		// SOLIDITET: OWNER
 		// ===============================
 		function processSoliditetOwner(title) {
-				console.log("🟦 Processing Soliditet Owner");
 
 				function cap(str) {
 						return str.toLocaleLowerCase("nb-NO")
@@ -971,7 +966,7 @@ function processSoliditetFull(title) {
 								name = [...parts.slice(1), parts[0]].map(cap).join(" ");
 						} else {
 								name = cap(name);
-								name = fixCompanySuffixes(name); // ✅ NEW
+								name = fixCompanySuffixes(name);
 						}
 
 						place = cap(place.replace(/\s*-\s*/, " "));
@@ -985,8 +980,7 @@ function processSoliditetFull(title) {
 		// SOLIDITET: BOARD
 		// ===============================
 		function processSoliditetBoard(title) {
-				console.log("🟦 Processing Soliditet Board");
-
+			
 				function cap(str) {
 						return str.toLocaleLowerCase("nb-NO")
 								.replace(/(^|[\s-])\S/g, l => l.toLocaleUpperCase("nb-NO"));
@@ -1093,14 +1087,13 @@ function processSoliditetFull(title) {
 		// Join with semicolon + space
 		let result = parts.join("; ") + ";";
 
-		console.log("📋 Soliditet FULL:", result);
 		return result;
 }
 
 
 // Processes title for Spotify pages
 function processSpotifyTitle(title) {
-    console.log("🎵 Processing title for Spotify");
+    console.log("🔵 Processing title for Spotify");
 
     // Remove trailing " | Spotify"
     title = title.replace(/\s*\|\s*Spotify$/, "").trim();
@@ -1125,7 +1118,7 @@ function processSpotifyTitle(title) {
 
 // Processes title for Twitch pages by extracting the streamer's username
 function processTwitchTitle(title) {
-    console.log("🎮 Processing title for Twitch");
+    console.log("🔵 Processing title for Twitch");
 
     // Try to extract the streamer’s username from an <h1> element
     const h1 = document.querySelector("h1");
@@ -1156,7 +1149,7 @@ function processTwitterTitle(title) {
 
 // Processes title for YouTube videos
 function processYouTubeTitle(title) {
-    console.log("🎬 Processing title for YouTube");
+    console.log("🔵 Processing title for YouTube");
 
     // Remove notification count (e.g., "(1) Video Title - YouTube")
     title = title.replace(/^\(\d+\)\s*/, ""); // Removes "(X) " at the start
@@ -1179,7 +1172,7 @@ function processYouTubeTitle(title) {
 
 // Processes generic page titles (default behavior)
 function processGenericTitle(title) {
-    console.log("🟢 Processing generic title");
+    console.log("🔵 Processing generic title");
 
     // Remove notification count (e.g., "(1) Page Title")
     title = title.replace(/^\(\d+\)\s*/, ""); // Removes "(X) " at the start
@@ -1679,87 +1672,47 @@ const browserAPI = typeof browser !== "undefined" ? browser : chrome;
 browserAPI.runtime.onMessage.addListener((message) => {
     console.log("📩 Message received in content.js:", message);
 
-    const title = document.title;
-    const siteHandler = getSiteHandler();
-    const formattedTitle = siteHandler(title);
     const url = window.location.href;
+    let copyText;
 
-    // One shared title for all link-style outputs.
-    const linkTitle = getLinkTitle(title, formattedTitle);
+    if (message.action === "copyUrl") {
+        const siteUrlHandler = getSiteUrlHandler();
+        copyText = siteUrlHandler
+            ? siteUrlHandler(document.title)
+            : url;
+    } else {
+        const title = document.title;
+        const siteHandler = getSiteHandler();
+        const formattedTitle = siteHandler(title);
 
-    let copyText = formattedTitle;
-
-    // ============================================================
-    // TITLE
-    // ============================================================
-
-    if (message.action === "copyTitle") {
-
+        // One shared title for all link-style outputs.
+        const linkTitle = getLinkTitle(title, formattedTitle);
         copyText = formattedTitle;
 
-    // ============================================================
-    // TITLE + URL
-    // ============================================================
+        if (message.action === "copyTitle") {
+            copyText = formattedTitle;
+        } else if (message.action === "copyTitleWithUrl") {
+            copyText = `${linkTitle} ${url}`;
+        } else if (message.action === "copyMarkdown") {
+            copyText = `[${linkTitle}](${url})`;
+        } else if (message.action === "copyBBCode") {
+            copyText = `[url=${url}]${linkTitle}[/url]`;
+        } else if (message.action === "copyHTML") {
+            const escapeHTML = (text) =>
+                text
+                    .replace(/&/g, "&amp;")
+                    .replace(/"/g, "&quot;")
+                    .replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;");
 
-    } else if (message.action === "copyTitleWithUrl") {
-
-        copyText = `${linkTitle} ${url}`;
-
-    // ============================================================
-    // MARKDOWN
-    // ============================================================
-
-    } else if (message.action === "copyMarkdown") {
-
-        copyText = `[${linkTitle}](${url})`;
-
-    // ============================================================
-    // BBCODE
-    // ============================================================
-
-    } else if (message.action === "copyBBCode") {
-
-        copyText = `[url=${url}]${linkTitle}[/url]`;
-
-    // ============================================================
-    // HTML
-    // ============================================================
-
-    } else if (message.action === "copyHTML") {
-
-        const escapeHTML = (text) =>
-            text
-                .replace(/&/g, "&amp;")
-                .replace(/"/g, "&quot;")
-                .replace(/</g, "&lt;")
-                .replace(/>/g, "&gt;");
-
-        copyText =
-            `<a href="${escapeHTML(url)}">${escapeHTML(linkTitle)}</a>`;
-
-    // ============================================================
-    // RAW TITLE
-    // ============================================================
-
-    } else if (message.action === "copyRawTitle") {
-
-        copyText = title;
-
-    // ============================================================
-    // URL / SITE-SPECIFIC SECONDARY ACTION
-    // ============================================================
-
-    } else if (message.action === "copyUrl") {
-
-        const siteUrlHandler = getSiteUrlHandler();
-
-        if (siteUrlHandler) {
-            copyText = siteUrlHandler(title);
-        } else {
-            copyText = url;
+            copyText =
+                `<a href="${escapeHTML(url)}">${escapeHTML(linkTitle)}</a>`;
+        } else if (message.action === "copyRawTitle") {
+            copyText = title;
         }
     }
-		    try {
+
+    try {
         browserAPI.runtime.sendMessage({
             action: "copyToClipboard",
             text: copyText

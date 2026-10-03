@@ -106,13 +106,22 @@ function getSiteMenuConfig(url) {
     }
 
     try {
-        const hostname = new URL(url).hostname.toLowerCase();
+        const parsedUrl = new URL(url);
+        const hostname = parsedUrl.hostname.toLowerCase();
+        const fullUrl = `${hostname}${parsedUrl.pathname}`.toLowerCase();
 
-        return Object.entries(customSite).find(
-            ([site]) =>
-                hostname === site ||
-                hostname.endsWith(`.${site}`)
-        )?.[1] || null;
+        return (
+            Object.entries(customSite).find(([site]) => {
+                if (site.includes("/")) {
+                    return fullUrl.startsWith(site);
+                }
+
+                return (
+                    hostname === site ||
+                    hostname.endsWith(`.${site}`)
+                );
+            })?.[1] || null
+        );
 
     } catch (error) {
         return null;
@@ -358,4 +367,42 @@ browserAPI.browserAction.onClicked.addListener((tab) => {
     }
 
     runCopyCommand(tab.id, "copyTitle");
+});
+
+
+// ============================================================
+// CLIPBOARD MESSAGE
+// ============================================================
+
+browserAPI.runtime.onMessage.addListener((message, sender) => {
+    if (
+        message.action !== "copyToClipboard" ||
+        !sender.tab?.id ||
+        typeof message.text !== "string"
+    ) {
+        return;
+    }
+
+    const textArea = document.createElement("textarea");
+    textArea.value = message.text;
+    document.body.appendChild(textArea);
+    textArea.select();
+
+    try {
+        if (!document.execCommand("copy")) {
+            throw new Error("The browser rejected the clipboard copy command.");
+        }
+
+        console.log("✅ Successfully copied:", message.text);
+
+        browserAPI.tabs.executeScript(sender.tab.id, {
+            code: `console.log("✅ Successfully copied:", ${JSON.stringify(message.text)});`
+        }).catch((error) => {
+            console.error("❌ Failed to log copied text in the page console:", error);
+        });
+    } catch (error) {
+        console.error("❌ Failed to copy to clipboard:", error);
+    } finally {
+        document.body.removeChild(textArea);
+    }
 });
