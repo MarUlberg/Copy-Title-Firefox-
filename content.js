@@ -31,12 +31,12 @@ const siteHandlers = {
     "theporndb.net": processAdultdbTitle,
     "proff.no": processProffTitle,
     "pornhub.com": processPHTitle,
+    "reddit.com": processRedditTitle,
+    "retroachievements.org": processRetroTitle,
     "soliditet.no": processSoliditetTitle,
     "open.spotify.com": processSpotifyTitle,
     "twitch.tv": processTwitchTitle,
     "x.com": processTwitterTitle,
-    "reddit.com": processRedditTitle,
-    "retroachievements.org": processRetroTitle,
     "youtube.com": processYouTubeTitle,
 };
 
@@ -53,8 +53,9 @@ function getSiteHandler() {
 // Determines which function to use for site-specific URL commands
 const siteUrlHandlers = {
     "theporndb.net": (title) => processAdultdbTitle(title, true),
-    "soliditet.no": processSoliditetFull,
     "retroachievements.org": processRetroAchivements,
+    "soliditet.no": processSoliditetFull,
+    "twitch.tv": processTwitchMessage,
 };
 
 function getSiteUrlHandler() {
@@ -640,7 +641,7 @@ function processRetroAchivements(title) {
 
 // Processes title for soliditet.no
 function processSoliditetTitle(title) {
-    console.log("🔵 Processing title for Soliditet");
+    console.log("🔵 Processing title for soliditet.no");
 
     function findCompanyName() {
         console.log("🔍 Searching for company name...");
@@ -737,7 +738,7 @@ function processSoliditetTitle(title) {
 // SOLIDITET: FULL
 // ===============================
 function processSoliditetFull(title) {
-    console.log("🟣 Processing URL alternative for Soliditet.no");
+    console.log("🟣 Processing URL alternative for soliditet.no");
 
     // ===============================
     // COMPANY
@@ -1130,6 +1131,30 @@ function processTwitchTitle(title) {
 
     console.warn("⚠ No <h1> username found on Twitch page.");
     return processGenericTitle(title); // Fallback if nothing is found
+}
+
+const TWITCH_MESSAGES = {
+    "/xqc": "xqcLL I ENJOYED MY STAY xqcLL I ENJOYED MY STAY xqcLL I ENJOYED MY STAY xqcLL I ENJOYED MY STAY xqcLL",
+    "/ludwig": "ludwigPRIMECHECK",
+    "/squeex": "CUM Clap",
+    "/maya": "peepoPog WOW",
+    "/forsen": "forsenE",
+    "/erobb221": "LMAOOOOOOOOOO",
+    default: "peepoHappy",
+};
+
+// Placeholder for Twitch's custom URL command
+function processTwitchMessage() {
+    console.log("🟣 Processing URL alternative for Twitch");
+
+    const pathname = window.location.pathname.toLowerCase();
+    const matchingChannel = Object.keys(TWITCH_MESSAGES).find(
+        channel => channel !== "default" && pathname.includes(channel)
+    );
+
+    return matchingChannel
+        ? TWITCH_MESSAGES[matchingChannel]
+        : TWITCH_MESSAGES.default;
 }
 
 // Processes title for Twitter pages

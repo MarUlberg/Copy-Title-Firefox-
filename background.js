@@ -73,7 +73,8 @@ const customSite = {
     },
 
     "twitch.tv": {
-        title: "Copy Streamer Name   (Click Extension Icon)"
+        title: "Copy Streamer Name   (Click Extension Icon)",
+        url: "Copy Twitch Message  (Shift+Ctrl+F)"
     },
 
     "x.com": {
