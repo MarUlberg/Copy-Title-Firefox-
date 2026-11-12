@@ -1136,7 +1136,7 @@ function processTwitchTitle(title) {
 const TWITCH_MESSAGES = {
     "/xqc": "xqcLL I ENJOYED MY STAY xqcLL I ENJOYED MY STAY xqcLL I ENJOYED MY STAY xqcLL I ENJOYED MY STAY xqcLL",
     "/ludwig": "ludwigPRIMECHECK",
-    "/squeex": "CUM Clap",
+    "/squeex": "YoshiWhat MarioBLJ",
     "/maya": "peepoPog WOW",
     "/forsen": "forsenE",
     "/erobb221": "LMAOOOOOOOOOO",
@@ -1649,11 +1649,15 @@ function properTitleCase(text) {
             }
 
             const lowerPart = part.toLowerCase();
+            const isPossessiveSuffix =
+                apostropheParts.length > 1 &&
+                partIndex === apostropheParts.length - 1 &&
+                lowerPart === "s";
 
             const shouldCapitalize =
-                capitalizeNext ||
-                partIndex > 0 ||
-                !smallWords.has(lowerPart);
+                (capitalizeNext && partIndex === 0) ||
+                (!isPossessiveSuffix &&
+                    (partIndex > 0 || !smallWords.has(lowerPart)));
 
             if (shouldCapitalize) {
                 // Capitalize only the first Unicode alphabetic character.
